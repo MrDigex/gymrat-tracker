@@ -19,9 +19,9 @@ test('the shortcut can push a run in kilometres and minutes', function () {
         'avg_hr' => 152.6,
     ])
         ->assertCreated()
-        ->assertJsonPath('data.distance_m', 5020)
-        ->assertJsonPath('data.duration_seconds', 1530)
-        ->assertJsonPath('data.source', 'shortcut');
+        ->assertJsonPath('distance_m', 5020)
+        ->assertJsonPath('duration_seconds', 1530)
+        ->assertJsonPath('source', 'shortcut');
 
     expect($this->user->activities()->sole())
         ->source->toBe(ActivitySource::Shortcut)

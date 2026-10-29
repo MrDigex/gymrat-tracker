@@ -6,6 +6,7 @@ use App\Models\RoutineExercise;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSet;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -119,4 +120,20 @@ test('the open graph image of a shared routine is a png', function () {
     $this->get(route('share.routine.image', $routine->share_token))
         ->assertOk()
         ->assertHeader('Content-Type', 'image/png');
+});
+
+test('routine exercises reach the page as a plain list', function () {
+    $routine = Routine::factory()->for($this->user)->create();
+    $empty = Routine::factory()->for($this->user)->create();
+    RoutineExercise::factory()->for($routine)->create();
+
+    $this->actingAs($this->user)
+        ->get(route('routines.show', $routine))
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('routine.exercises', 1)
+            ->has('routine.exercises.0.exercise.name'));
+
+    $this->actingAs($this->user)
+        ->get(route('routines.show', $empty))
+        ->assertInertia(fn (Assert $page) => $page->where('routine.exercises', []));
 });
