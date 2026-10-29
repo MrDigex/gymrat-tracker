@@ -37,9 +37,7 @@ export function PublicShareLayout({
                         href={home()}
                         className="flex items-center gap-2 font-semibold"
                     >
-                        <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                            <AppLogoIcon className="size-5 fill-current" />
-                        </span>
+                        <AppLogoIcon className="size-8" />
                         <span className="truncate">{appName}</span>
                     </Link>
                     <Button asChild size="sm">

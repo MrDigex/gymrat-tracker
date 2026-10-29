@@ -262,12 +262,25 @@ export function StoryCard({
         >
             <div
                 style={{
-                    height: 16,
-                    width: 220,
-                    background: '#facc15',
-                    borderRadius: 8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                 }}
-            />
+            >
+                <div
+                    style={{
+                        height: 16,
+                        width: 220,
+                        background: '#facc15',
+                        borderRadius: 8,
+                    }}
+                />
+                <img
+                    src="/images/logo/gymrat-icon.png"
+                    alt=""
+                    style={{ width: 200, height: 200 }}
+                />
+            </div>
             <div
                 style={{
                     alignSelf: 'flex-start',

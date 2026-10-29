@@ -35,7 +35,7 @@ class OgImageGenerator
     public function render(string $cacheKey, string $badge, string $title, array $lines, ?string $footer = null): string
     {
         $disk = Storage::disk('local');
-        $path = 'og/'.Str::slug($cacheKey).'-'.md5($badge.$title.implode('|', $lines).$footer).'.png';
+        $path = 'og/'.Str::slug($cacheKey).'-'.md5('v2'.$badge.$title.implode('|', $lines).$footer).'.png';
 
         if ($disk->exists($path)) {
             return $disk->get($path);
@@ -48,7 +48,7 @@ class OgImageGenerator
         $image->drawRectangle(fn (RectangleFactory $rectangle) => $rectangle->size(36 + mb_strlen($badge) * 18, 50)->at(70, 70)->background(self::ACCENT));
         $image->text(Str::upper($badge), 82, 106, fn (FontFactory $f) => $f->filename($font)->size(26)->color(self::BACKGROUND));
 
-        $image->text(Str::limit($title, 60), 70, 200, fn (FontFactory $f) => $f->filename($font)->size(64)->color(self::TEXT)->wrap(1060)->lineHeight(1.5)->align('left', 'top'));
+        $image->text(Str::limit($title, 60), 70, 200, fn (FontFactory $f) => $f->filename($font)->size(64)->color(self::TEXT)->wrap(880)->lineHeight(1.5)->align('left', 'top'));
 
         $y = mb_strlen($title) > 28 ? 380 : 320;
 
@@ -56,6 +56,12 @@ class OgImageGenerator
             $image->text('• '.Str::limit($line, 58), 70, $y, fn (FontFactory $f) => $f->filename($font)->size(28)->color(self::MUTED));
             $y += 46;
         }
+
+        $image->insert(
+            ImageManager::usingDriver(Driver::class)->decodePath(public_path('images/logo/gymrat-icon.png'))->scale(170, 170),
+            self::WIDTH - 70 - 170,
+            60,
+        );
 
         $image->text($footer ?? config('app.name'), 70, self::HEIGHT - 50, fn (FontFactory $f) => $f->filename($font)->size(28)->color(self::ACCENT));
 

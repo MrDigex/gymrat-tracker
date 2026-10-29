@@ -73,9 +73,7 @@ export default function Welcome() {
             <div className="flex min-h-screen flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
                 <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
                     <Link href={home()} className="flex items-center gap-2">
-                        <span className="flex size-9 items-center justify-center rounded-md bg-[#facc15]">
-                            <AppLogoIcon className="size-5 fill-current text-neutral-950" />
-                        </span>
+                        <AppLogoIcon className="size-9" />
                         <span className="text-lg font-bold tracking-tight">
                             GymRat Tracker
                         </span>
@@ -110,7 +108,12 @@ export default function Welcome() {
                             aria-hidden="true"
                             className="pointer-events-none absolute inset-x-0 -top-40 mx-auto h-80 max-w-3xl rounded-full bg-[#facc15]/20 blur-3xl dark:bg-[#facc15]/10"
                         />
-                        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-6 pt-16 pb-20 text-center lg:pt-24">
+                        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-6 pt-12 pb-20 text-center lg:pt-16">
+                            <img
+                                src="/images/logo/gymrat-icon.png"
+                                alt="GymRat, la rata de gimnasio levantando peso muerto"
+                                className="mb-6 size-32 -rotate-3 drop-shadow-xl transition-transform hover:rotate-3 sm:size-40"
+                            />
                             <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#facc15]/40 bg-[#facc15]/10 px-3 py-1 text-xs font-medium text-yellow-800 dark:text-[#facc15]">
                                 <Flame className="size-3.5" />
                                 Fuerza, Hyrox y running en un solo lugar
