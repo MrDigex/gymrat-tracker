@@ -32,7 +32,13 @@ jobs:
           node-version: '22'
 
       - name: Setup Application
-        run: composer setup
+        env:
+          # .env.example targets MySQL for local development; CI uses a SQLite file.
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
+        run: |
+          touch database/database.sqlite
+          composer setup
 
       - name: Run CI Checks
         run: composer ci:check
