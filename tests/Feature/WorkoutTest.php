@@ -5,6 +5,7 @@ use App\Models\Routine;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSet;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -78,4 +79,13 @@ test('a shared workout has a public page', function () {
 
     $this->get(route('share.workout', $session->fresh()->share_token))->assertOk();
     $this->get(route('share.workout.image', $session->fresh()->share_token))->assertHeader('Content-Type', 'image/png');
+});
+
+test('a finished workout includes the current streak', function () {
+    $session = WorkoutSession::factory()->for($this->user)->create(['started_at' => now()->subHour(), 'finished_at' => now()]);
+    WorkoutSession::factory()->for($this->user)->create(['started_at' => now()->subDay()]);
+
+    $this->actingAs($this->user)
+        ->get(route('workouts.show', $session))
+        ->assertInertia(fn (Assert $page) => $page->where('streakDays', 2));
 });

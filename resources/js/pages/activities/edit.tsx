@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import type { HyroxSplit } from '@/components/activity-form';
+import { FormHeader } from '@/components/activities/form-header';
 import { ActivityForm } from '@/components/activity-form';
-import Heading from '@/components/heading';
 import activities from '@/routes/activities';
 import type { Activity, Option } from '@/types';
 
@@ -17,8 +17,12 @@ export default function ActivitiesEdit({
     return (
         <>
             <Head title={`Editar ${activity.name}`} />
-            <div className="mx-auto w-full max-w-3xl p-4">
-                <Heading title="Editar carrera" description={activity.name} />
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 lg:p-6">
+                <FormHeader
+                    title="Editar carrera"
+                    subtitle={activity.name}
+                    closeHref={activities.show.url(activity.id)}
+                />
                 <ActivityForm
                     key={activity.id}
                     activity={activity}

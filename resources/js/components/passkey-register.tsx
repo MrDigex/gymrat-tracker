@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { usePasskeyRegister } from '@laravel/passkeys/react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
@@ -59,15 +60,19 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     if (!isSupported) {
         return (
             <div className="text-sm text-muted-foreground">
-                Este navegador no admite llaves de acceso.
+                Este navegador no admite passkeys.
             </div>
         );
     }
 
     if (!showForm) {
         return (
-            <Button variant="outline" onClick={() => setShowForm(true)}>
-                Añadir llave de acceso
+            <Button
+                onClick={() => setShowForm(true)}
+                className="h-11 rounded-lg bg-foreground font-bold text-background hover:bg-foreground/90"
+            >
+                <Plus />
+                Añadir passkey
             </Button>
         );
     }
@@ -75,34 +80,40 @@ export default function PasskeyRegistration({ onSuccess }: Props) {
     return (
         <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-lg border border-border bg-muted/50 p-4"
+            className="flex w-full basis-full flex-col gap-3 rounded-lg border border-dashed p-4"
         >
             <div className="grid gap-2">
-                <Label htmlFor="passkey-name">
-                    Nombre de la llave de acceso
-                </Label>
+                <Label htmlFor="passkey-name">Nombre de la passkey</Label>
                 <Input
                     id="passkey-name"
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="p. ej., MacBook Pro, iPhone"
-                    className="mt-1 block w-full border-foreground/20"
+                    className="h-11"
                     autoFocus
                 />
                 <p className="text-xs text-muted-foreground">
-                    Un nombre te ayudará a identificar esta llave de acceso más
-                    adelante.
+                    Te ayudará a reconocerla más adelante.
                 </p>
             </div>
 
             {error && <InputError message={error} />}
 
             <div className="flex gap-2">
-                <Button type="submit" disabled={isLoading || !name.trim()}>
-                    {isLoading ? 'Registrando...' : 'Registrar llave de acceso'}
+                <Button
+                    type="submit"
+                    className="h-11 rounded-lg font-bold"
+                    disabled={isLoading || !name.trim()}
+                >
+                    {isLoading ? 'Registrando...' : 'Añadir passkey'}
                 </Button>
-                <Button type="button" variant="ghost" onClick={handleCancel}>
+                <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-11"
+                    onClick={handleCancel}
+                >
                     Cancelar
                 </Button>
             </div>

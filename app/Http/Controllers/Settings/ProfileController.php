@@ -22,6 +22,12 @@ class ProfileController extends Controller
         return Inertia::render('settings/profile', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => $request->session()->get('status'),
+            'security' => [
+                'password_changed_at' => $request->user()->password_changed_at?->toIso8601String(),
+                'two_factor_enabled' => $request->user()->hasEnabledTwoFactorAuthentication(),
+                'two_factor_confirmed_at' => $request->user()->two_factor_confirmed_at?->toIso8601String(),
+                'passkeys_count' => $request->user()->passkeys()->count(),
+            ],
         ]);
     }
 

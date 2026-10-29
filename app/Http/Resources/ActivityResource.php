@@ -39,6 +39,7 @@ class ActivityResource extends JsonResource
             'source' => $this->source->value,
             'source_label' => $this->source->label(),
             'share_url' => $this->share_token ? route('share.activity', $this->share_token) : null,
+            'splits_count' => $this->whenCounted('splits'),
             'splits' => $this->whenLoaded('splits', fn () => $this->splits->map(fn (ActivitySplit $split) => [
                 'id' => $split->id,
                 'position' => $split->position,

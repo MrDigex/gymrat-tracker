@@ -1,7 +1,7 @@
 import { router } from '@inertiajs/react';
 import { KeyRound } from 'lucide-react';
 import { destroy } from '@/actions/Laravel/Passkeys/Http/Controllers/PasskeyRegistrationController';
-import Heading from '@/components/heading';
+import { SettingsCard } from '@/components/settings/settings-card';
 import PasskeyItem from '@/components/passkey-item';
 import PasskeyRegistration from '@/components/passkey-register';
 import type { Passkey } from '@/types/auth';
@@ -13,13 +13,14 @@ export type Props = {
 
 const EmptyState = () => {
     return (
-        <div className="p-8 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                <KeyRound className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <p className="font-medium">Aún no tienes llaves de acceso</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-                Añade una llave de acceso para iniciar sesión sin contraseña
+        <div className="flex items-center gap-3 rounded-lg border border-dashed p-4">
+            <KeyRound
+                className="size-5 shrink-0 text-muted-foreground"
+                aria-hidden
+            />
+            <p className="text-sm text-muted-foreground">
+                Aún no tienes passkeys. Añade una para iniciar sesión sin
+                contraseña.
             </p>
         </div>
     );
@@ -44,28 +45,25 @@ export default function ManagePasskeys(props: Props) {
     }
 
     return (
-        <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Llaves de acceso"
-                description="Gestiona tus llaves de acceso para iniciar sesión sin contraseña"
-            />
-
-            <div className="overflow-hidden rounded-lg border border-border">
-                {passkeys.length > 0 ? (
-                    passkeys.map((passkey) => (
+        <SettingsCard
+            id="passkeys"
+            title="Passkeys"
+            description="Entra con Face ID o la huella, sin contraseña."
+            action={<PasskeyRegistration onSuccess={handleRegisterSuccess} />}
+        >
+            {passkeys.length > 0 ? (
+                <div className="flex flex-col divide-y border-t">
+                    {passkeys.map((passkey) => (
                         <PasskeyItem
                             key={passkey.id}
                             passkey={passkey}
                             onDelete={handleDelete}
                         />
-                    ))
-                ) : (
-                    <EmptyState />
-                )}
-            </div>
-
-            <PasskeyRegistration onSuccess={handleRegisterSuccess} />
-        </div>
+                    ))}
+                </div>
+            ) : (
+                <EmptyState />
+            )}
+        </SettingsCard>
     );
 }

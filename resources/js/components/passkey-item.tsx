@@ -1,4 +1,3 @@
-import { KeyRound, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,53 +25,38 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
     };
 
     return (
-        <div className="flex items-center justify-between border-b p-4 last:border-b-0">
-            <div className="flex items-center gap-4">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted">
-                    <KeyRound className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2.5">
-                        <p className="font-medium tracking-tight">
-                            {passkey.name}
-                        </p>
-                        {passkey.authenticator && (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase ring-1 ring-border ring-inset">
-                                {passkey.authenticator}
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                        Añadida {passkey.created_at_diff}
-                        {passkey.last_used_at_diff && (
-                            <>
-                                <span className="mx-1 text-muted-foreground/50">
-                                    /
-                                </span>
-                                Último uso {passkey.last_used_at_diff}
-                            </>
-                        )}
-                    </p>
-                </div>
+        <div className="flex items-center gap-3 py-3 last:pb-0">
+            <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-2 font-bold">
+                    <span className="truncate">{passkey.name}</span>
+                    {passkey.authenticator && (
+                        <span className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            {passkey.authenticator}
+                        </span>
+                    )}
+                </p>
+                <p className="text-[13px] text-muted-foreground">
+                    {passkey.last_used_at_diff
+                        ? `Último uso: ${passkey.last_used_at_diff}`
+                        : `Añadida ${passkey.created_at_diff}, sin usar todavía`}
+                </p>
             </div>
 
             <Dialog>
                 <DialogTrigger asChild>
                     <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        variant="outline"
+                        className="h-11 rounded-lg font-bold text-destructive hover:text-destructive"
+                        aria-label={`Eliminar la passkey ${passkey.name}`}
                     >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Eliminar</span>
+                        Eliminar
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
-                    <DialogTitle>Eliminar llave de acceso</DialogTitle>
+                    <DialogTitle>Eliminar passkey</DialogTitle>
                     <DialogDescription>
-                        ¿Seguro que quieres eliminar la llave de acceso "
-                        {passkey.name}"? Ya no podrás usarla para iniciar
-                        sesión.
+                        ¿Seguro que quieres eliminar la passkey "{passkey.name}
+                        "? Ya no podrás usarla para iniciar sesión.
                     </DialogDescription>
                     <DialogFooter className="gap-2">
                         <DialogClose asChild>
@@ -83,9 +67,7 @@ export default function PasskeyItem({ passkey, onDelete }: Props) {
                             onClick={handleDelete}
                             disabled={isDeleting}
                         >
-                            {isDeleting
-                                ? 'Eliminando...'
-                                : 'Eliminar llave de acceso'}
+                            {isDeleting ? 'Eliminando...' : 'Eliminar passkey'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

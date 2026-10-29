@@ -34,7 +34,7 @@ class StravaClient
     /**
      * Exchange an authorization code for tokens and the athlete profile.
      *
-     * @return array{access_token: string, refresh_token: string, expires_at: int, athlete: array{id: int}}
+     * @return array{access_token: string, refresh_token: string, expires_at: int, athlete: array{id: int, firstname?: string, lastname?: string}}
      *
      * @throws RequestException
      */

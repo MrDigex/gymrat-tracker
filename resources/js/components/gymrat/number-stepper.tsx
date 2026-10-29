@@ -16,6 +16,8 @@ type NumberStepperProps = {
     unit?: string;
     /** "lg" = 64px for the set logger, "md" = 56px for forms. */
     size?: 'md' | 'lg';
+    /** Narrower ± buttons (44px) so two steppers fit side by side on a phone. */
+    compact?: boolean;
     className?: string;
 };
 
@@ -32,6 +34,7 @@ export function NumberStepper({
     max = 9999,
     unit,
     size = 'lg',
+    compact = false,
     className,
 }: NumberStepperProps) {
     const id = useId();
@@ -77,11 +80,13 @@ export function NumberStepper({
     const height = size === 'lg' ? 'h-16' : 'h-14';
     const stepLabel = numberFormat.format(step);
     const buttonClass = cn(
-        'grid w-14 shrink-0 place-items-center bg-secondary bg-knurl text-secondary-foreground',
+        'grid shrink-0 place-items-center bg-secondary bg-knurl text-secondary-foreground',
         'transition-colors duration-[120ms] active:bg-border disabled:opacity-40',
         'focus-visible:relative focus-visible:z-10',
+        compact ? 'w-11' : 'w-14',
         height,
     );
+    const shown = draft ?? numberFormat.format(value);
 
     return (
         <div className={cn('flex flex-col gap-1.5', className)}>
@@ -116,12 +121,17 @@ export function NumberStepper({
                 >
                     <Minus className="size-6" aria-hidden />
                 </button>
-                <div className="flex flex-1 items-baseline justify-center gap-1 px-1">
+                <div className="flex flex-1 items-center justify-center gap-1 px-1">
                     <input
                         id={id}
                         inputMode="decimal"
-                        className="w-full min-w-0 bg-transparent text-center font-num text-[28px] leading-[4rem] outline-none"
-                        value={draft ?? numberFormat.format(value)}
+                        className={cn(
+                            'h-full w-full min-w-0 bg-transparent text-center font-num leading-none outline-none',
+                            compact && shown.length > 4
+                                ? 'text-[22px]'
+                                : 'text-[28px]',
+                        )}
+                        value={shown}
                         onFocus={(event) => {
                             setDraft(numberFormat.format(value));
                             event.currentTarget.select();
@@ -142,7 +152,12 @@ export function NumberStepper({
                         }}
                     />
                     {unit && (
-                        <span className="-ml-1 text-sm text-muted-foreground">
+                        <span
+                            className={cn(
+                                '-ml-1 text-sm text-muted-foreground',
+                                compact && 'sr-only',
+                            )}
+                        >
                             {unit}
                         </span>
                     )}

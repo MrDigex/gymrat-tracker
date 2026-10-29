@@ -37,3 +37,14 @@ test('the security page shows when the password was changed', function () {
         ->get(route('security.edit'))
         ->assertInertia(fn (Assert $page) => $page->where('passwordChangedAt', $user->password_changed_at->toIso8601String()));
 });
+
+test('the profile page includes a security summary', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('profile.edit'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('security.password_changed_at', $user->password_changed_at->toIso8601String())
+            ->where('security.two_factor_enabled', false)
+            ->where('security.passkeys_count', 0));
+});

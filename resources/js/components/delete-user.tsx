@@ -1,7 +1,6 @@
 import { Form } from '@inertiajs/react';
 import { useRef } from 'react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
@@ -20,27 +19,31 @@ export default function DeleteUser() {
     const passwordInput = useRef<HTMLInputElement>(null);
 
     return (
-        <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Eliminar cuenta"
-                description="Elimina tu cuenta y todos sus datos"
-            />
-            <div className="space-y-4 rounded-lg border border-red-100 bg-red-50 p-4 dark:border-red-200/10 dark:bg-red-700/10">
-                <div className="relative space-y-0.5 text-red-600 dark:text-red-100">
-                    <p className="font-medium">Atención</p>
-                    <p className="text-sm">
-                        Procede con cuidado: esta acción no se puede deshacer.
-                    </p>
-                </div>
-
+        <section
+            className="flex flex-col gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 lg:p-5"
+            aria-labelledby="delete-account-title"
+        >
+            <div>
+                <h2
+                    id="delete-account-title"
+                    className="text-lg leading-tight font-bold text-destructive"
+                >
+                    Eliminar cuenta
+                </h2>
+                <p className="mt-1 text-sm">
+                    Se borran tus rutinas, entrenamientos y carreras. No se
+                    puede deshacer.
+                </p>
+            </div>
+            <div>
                 <Dialog>
                     <DialogTrigger asChild>
                         <Button
                             variant="destructive"
+                            className="h-12 rounded-xl px-5 font-bold dark:text-destructive-foreground"
                             data-test="delete-user-button"
                         >
-                            Eliminar cuenta
+                            Eliminar mi cuenta
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -115,6 +118,6 @@ export default function DeleteUser() {
                     </DialogContent>
                 </Dialog>
             </div>
-        </div>
+        </section>
     );
 }

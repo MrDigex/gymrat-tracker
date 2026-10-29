@@ -1,6 +1,6 @@
 import { Head } from '@inertiajs/react';
 import AppearanceTabs from '@/components/appearance-tabs';
-import Heading from '@/components/heading';
+import { SettingsCard } from '@/components/settings/settings-card';
 import { edit as editAppearance } from '@/routes/appearance';
 
 export default function Appearance() {
@@ -8,16 +8,12 @@ export default function Appearance() {
         <>
             <Head title="Ajustes de apariencia" />
 
-            <h1 className="sr-only">Ajustes de apariencia</h1>
-
-            <div className="space-y-6">
-                <Heading
-                    variant="small"
-                    title="Ajustes de apariencia"
-                    description="Cambia la apariencia de la aplicación para tu cuenta"
-                />
-                <AppearanceTabs />
-            </div>
+            <SettingsCard
+                title="Apariencia"
+                description="El modo oscuro es el de siempre en el gimnasio. Sistema sigue el ajuste de tu dispositivo."
+            >
+                <AppearanceTabs className="max-w-md" />
+            </SettingsCard>
         </>
     );
 }

@@ -133,7 +133,7 @@ test('the oauth callback rejects a mismatched state', function () {
 test('the oauth callback stores the connection', function () {
     $user = User::factory()->create();
     Http::fake(['www.strava.com/oauth/token' => Http::response([
-        'access_token' => 'a', 'refresh_token' => 'r', 'expires_at' => now()->addHours(6)->timestamp, 'athlete' => ['id' => 4242],
+        'access_token' => 'a', 'refresh_token' => 'r', 'expires_at' => now()->addHours(6)->timestamp, 'athlete' => ['id' => 4242, 'firstname' => 'Lucía', 'lastname' => 'Martín'],
     ])]);
 
     $this->actingAs($user)
@@ -141,5 +141,7 @@ test('the oauth callback stores the connection', function () {
         ->get(route('integrations.strava.callback', ['state' => 'expected', 'code' => 'x', 'scope' => 'read,activity:read_all']))
         ->assertRedirect(route('integrations.index'));
 
-    expect($user->stravaAccount->athlete_id)->toBe(4242);
+    expect($user->stravaAccount)
+        ->athlete_id->toBe(4242)
+        ->athlete_name->toBe('Lucía Martín');
 });

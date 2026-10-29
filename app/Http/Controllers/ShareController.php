@@ -48,6 +48,11 @@ class ShareController extends Controller
             $routine->name,
             array_values($routine->routineExercises->map(fn (RoutineExercise $item) => $item->exercise->name.' · '.$this->targetLabel($item))->all()),
             $routine->user->name.' · '.config('app.name'),
+            array_filter([
+                'Ejercicios' => (string) $routine->routineExercises->count(),
+                'Series' => (string) $routine->routineExercises->sum('target_sets'),
+                'Duración' => $routine->estimatedMinutes() > 0 ? '~'.$routine->estimatedMinutes().' min' : null,
+            ]),
         ));
     }
 

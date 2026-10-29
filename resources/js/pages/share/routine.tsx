@@ -1,92 +1,114 @@
 import { Head } from '@inertiajs/react';
-import { Target, Timer } from 'lucide-react';
 import { ExerciseImage } from '@/components/exercise-image';
-import { PublicShareLayout } from '@/components/public-share-layout';
-import { Badge } from '@/components/ui/badge';
-import { formatTarget } from '@/lib/format';
+import {
+    initials,
+    PublicShareLayout,
+    PublicStat,
+} from '@/components/public-share-layout';
+import { formatNumber, formatTarget } from '@/lib/format';
 import type { Routine } from '@/types';
+
+function formatRest(seconds: number): string {
+    return seconds >= 120
+        ? `${formatNumber(seconds / 60)} min`
+        : `${seconds} s`;
+}
 
 export default function ShareRoutine({
     routine,
     author,
-    shareUrl,
 }: {
     routine: Routine;
     author: string;
-    shareUrl: string;
 }) {
     const items = routine.exercises ?? [];
+    const totalSets =
+        routine.total_sets ??
+        items.reduce((total, item) => total + item.target_sets, 0);
 
     return (
         <>
             <Head title={routine.name} />
-            <PublicShareLayout
-                badge="Rutina"
-                title={routine.name}
-                subtitle={
-                    <>
-                        {routine.description && (
-                            <p className="mb-1">{routine.description}</p>
-                        )}
-                        <p className="text-sm">
-                            {items.length}{' '}
-                            {items.length === 1 ? 'ejercicio' : 'ejercicios'}
-                        </p>
-                    </>
-                }
-                author={author}
-                shareUrl={shareUrl}
-                shareText={`Mira la rutina "${routine.name}" de ${author}`}
-            >
-                <ol className="space-y-3">
+            <PublicShareLayout pitch="Copia esta rutina y GymRat te dirá cuándo subir peso.">
+                <div className="flex items-center gap-2 text-[15px]">
+                    <span
+                        aria-hidden
+                        className="grid size-7 place-items-center rounded-full bg-primary text-[11px] font-extrabold text-primary-foreground"
+                    >
+                        {initials(author)}
+                    </span>
+                    Rutina de {author}
+                </div>
+                <h1 className="mt-1 font-num text-[56px] leading-[0.95] break-words uppercase sm:text-[72px]">
+                    {routine.name}
+                </h1>
+                {routine.description && (
+                    <p className="mt-2 text-base leading-relaxed text-foreground/85">
+                        {routine.description}
+                    </p>
+                )}
+
+                <div className="mt-4 flex gap-6">
+                    <PublicStat label="Ejercicios" value={items.length} />
+                    <PublicStat label="Series" value={totalSets} />
+                    {routine.estimated_minutes ? (
+                        <PublicStat
+                            label="Duración"
+                            value={`~${routine.estimated_minutes} min`}
+                        />
+                    ) : null}
+                </div>
+
+                <ol className="mt-5 grid gap-2.5">
                     {items.map((item, index) => {
                         const muscles = [
                             ...(item.exercise.primary_muscles ?? []),
                             ...(item.exercise.secondary_muscles ?? []),
-                        ];
+                        ].slice(0, 3);
 
                         return (
                             <li
                                 key={item.id}
-                                className="flex gap-4 overflow-hidden rounded-xl border bg-card p-3"
+                                className="flex gap-3 rounded-[14px] bg-card p-2"
                             >
-                                <div className="relative w-28 shrink-0 sm:w-36">
+                                <div className="relative size-[76px] shrink-0 overflow-hidden rounded-[10px]">
                                     <ExerciseImage
                                         exercise={item.exercise}
-                                        className="rounded-lg"
+                                        className="size-full"
                                     />
-                                    <span className="absolute top-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
+                                    <span className="absolute bottom-1 left-1 rounded-[6px] bg-[#18181b]/80 px-1.5 font-num text-sm text-[#fafafa]">
                                         {index + 1}
                                     </span>
                                 </div>
-                                <div className="min-w-0 flex-1 space-y-2 py-1">
-                                    <h2 className="leading-tight font-semibold">
+                                <div className="min-w-0 flex-1 py-1">
+                                    <h2 className="leading-tight font-bold">
                                         {item.exercise.name}
                                     </h2>
-                                    <div className="flex flex-wrap gap-1.5">
-                                        <Badge className="gap-1">
-                                            <Target className="size-3" />
+                                    <p className="mt-0.5">
+                                        <span className="font-num text-[15px] text-primary-text">
                                             {formatTarget(item)}
-                                        </Badge>
-                                        {item.rest_seconds && (
-                                            <Badge
-                                                variant="outline"
-                                                className="gap-1"
-                                            >
-                                                <Timer className="size-3" />
-                                                {item.rest_seconds} s descanso
-                                            </Badge>
-                                        )}
-                                    </div>
+                                        </span>
+                                        {item.rest_seconds ? (
+                                            <span className="ml-1.5 text-xs text-muted-foreground">
+                                                descanso{' '}
+                                                {formatRest(item.rest_seconds)}
+                                            </span>
+                                        ) : null}
+                                    </p>
                                     {muscles.length > 0 && (
-                                        <p className="text-xs text-muted-foreground">
-                                            {muscles
-                                                .map((muscle) => muscle.name)
-                                                .join(' · ')}
-                                        </p>
+                                        <ul className="mt-1.5 flex flex-wrap gap-1">
+                                            {muscles.map((muscle) => (
+                                                <li
+                                                    key={muscle.id}
+                                                    className="rounded-md bg-tip-first/20 px-1.5 py-0.5 text-[11px] font-bold"
+                                                >
+                                                    {muscle.name}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     )}
                                     {item.notes && (
-                                        <p className="text-sm text-muted-foreground italic">
+                                        <p className="mt-1 text-sm text-muted-foreground italic">
                                             {item.notes}
                                         </p>
                                     )}

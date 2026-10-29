@@ -62,44 +62,85 @@ export function RestTimer({
     const percent = total > 0 ? (left / total) * 100 : 0;
 
     if (variant === 'inline') {
-        const circumference = 2 * Math.PI * 18;
+        const radius = 64;
+        const circumference = 2 * Math.PI * radius;
 
         return (
             <div
                 className={cn(
-                    'flex items-center gap-3 rounded-lg bg-muted px-3 py-2.5',
+                    'overflow-hidden rounded-xl transition-colors duration-[180ms]',
+                    finished
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-foreground text-background',
                     className,
                 )}
                 role="timer"
-                aria-live="off"
             >
-                <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden>
-                    <circle
-                        cx="22"
-                        cy="22"
-                        r="18"
-                        fill="none"
-                        stroke="var(--border)"
-                        strokeWidth="5"
-                    />
-                    <circle
-                        cx="22"
-                        cy="22"
-                        r="18"
-                        fill="none"
-                        stroke="var(--primary)"
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={circumference * (1 - percent / 100)}
-                        transform="rotate(-90 22 22)"
-                        className="transition-[stroke-dashoffset] duration-300 ease-linear"
-                    />
-                </svg>
-                <span className="flex-1 font-num text-2xl">{mmss(left)}</span>
-                <span className="sr-only" aria-live="polite">
-                    {finished ? 'Descanso terminado' : ''}
-                </span>
+                <div className="h-1.5 bg-hazard" aria-hidden />
+                <div className="flex flex-col items-center gap-3 p-4 pt-3">
+                    <span className="text-[13px] font-bold opacity-70">
+                        {finished ? '¡A por la siguiente!' : 'Descanso'}
+                    </span>
+                    <div className="relative grid size-40 place-items-center">
+                        <svg
+                            className="absolute inset-0"
+                            viewBox="0 0 160 160"
+                            aria-hidden
+                        >
+                            <circle
+                                cx="80"
+                                cy="80"
+                                r={radius}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeOpacity={0.12}
+                                strokeWidth="10"
+                            />
+                            <circle
+                                cx="80"
+                                cy="80"
+                                r={radius}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="10"
+                                strokeLinecap="round"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={
+                                    circumference * (1 - percent / 100)
+                                }
+                                transform="rotate(-90 80 80)"
+                                className="transition-[stroke-dashoffset] duration-300 ease-linear"
+                            />
+                        </svg>
+                        <span className="font-num text-[40px] leading-none">
+                            {mmss(left)}
+                        </span>
+                    </div>
+                    <span className="sr-only" aria-live="polite">
+                        {finished ? 'Descanso terminado' : ''}
+                    </span>
+                    <div className="grid w-full grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onClick={addFifteen}
+                            className="h-12 rounded-md border-2 border-current text-[15px] font-extrabold active:scale-[.97]"
+                        >
+                            +15 s
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onSkip}
+                            className={cn(
+                                'h-12 rounded-md text-[15px] font-extrabold active:scale-[.97]',
+                                finished
+                                    ? 'bg-[#18181b] text-primary'
+                                    : 'bg-background text-primary-text dark:text-primary',
+                            )}
+                        >
+                            {finished ? 'Cerrar' : 'Saltar'}
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }

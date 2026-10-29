@@ -1,17 +1,19 @@
 import { Form } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import Heading from '@/components/heading';
+import { SettingsCard } from '@/components/settings/settings-card';
 import TwoFactorRecoveryCodes from '@/components/two-factor-recovery-codes';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
+import { formatDate } from '@/lib/format';
 import { disable, enable } from '@/routes/two-factor';
 
 export type Props = {
     canManageTwoFactor?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
+    twoFactorConfirmedAt?: string | null;
 };
 
 export default function ManageTwoFactor(props: Props) {
@@ -44,70 +46,70 @@ export default function ManageTwoFactor(props: Props) {
         return null;
     }
 
+    const since = props.twoFactorConfirmedAt
+        ? ` desde el ${formatDate(props.twoFactorConfirmedAt, { day: 'numeric', month: 'short', year: 'numeric' })}`
+        : '';
+
     return (
-        <div className="space-y-6">
-            <Heading
-                variant="small"
-                title="Autenticación en dos pasos"
-                description="Gestiona la autenticación en dos pasos de tu cuenta"
-            />
-            {twoFactorEnabled ? (
-                <div className="flex flex-col items-start justify-start space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        Al iniciar sesión se te pedirá un código seguro y
-                        aleatorio, que puedes obtener desde la aplicación de
-                        autenticación (TOTP) de tu teléfono.
-                    </p>
-
-                    <div className="relative inline">
-                        <Form {...disable.form()}>
-                            {({ processing }) => (
-                                <Button
-                                    variant="destructive"
-                                    type="submit"
-                                    disabled={processing}
-                                >
-                                    Desactivar 2FA
-                                </Button>
-                            )}
-                        </Form>
-                    </div>
-
-                    <TwoFactorRecoveryCodes
-                        recoveryCodesList={recoveryCodesList}
-                        fetchRecoveryCodes={fetchRecoveryCodes}
-                        errors={errors}
-                    />
-                </div>
-            ) : (
-                <div className="flex flex-col items-start justify-start space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        Al activar la autenticación en dos pasos se te pedirá un
-                        código seguro al iniciar sesión. Puedes obtener este
-                        código desde una aplicación de autenticación (TOTP) en
-                        tu teléfono.
-                    </p>
-
-                    <div>
-                        {hasSetupData ? (
-                            <Button onClick={() => setShowSetupModal(true)}>
-                                <ShieldCheck />
-                                Continuar configuración
-                            </Button>
-                        ) : (
-                            <Form
-                                {...enable.form()}
-                                onSuccess={() => setShowSetupModal(true)}
+        <SettingsCard
+            id="two-factor"
+            title="Verificación en dos pasos"
+            description={
+                twoFactorEnabled ? (
+                    <span className="flex items-center gap-1.5 text-success">
+                        <ShieldCheck className="size-4 shrink-0" aria-hidden />
+                        Activada con app de autenticación{since}.
+                    </span>
+                ) : (
+                    'Desactivada. Al activarla te pediremos un código de tu app de autenticación (TOTP) al iniciar sesión.'
+                )
+            }
+            action={
+                twoFactorEnabled ? (
+                    <Form {...disable.form()}>
+                        {({ processing }) => (
+                            <Button
+                                variant="outline"
+                                type="submit"
+                                disabled={processing}
+                                className="h-11 rounded-lg font-bold text-destructive hover:text-destructive"
                             >
-                                {({ processing }) => (
-                                    <Button type="submit" disabled={processing}>
-                                        Activar 2FA
-                                    </Button>
-                                )}
-                            </Form>
+                                Desactivar
+                            </Button>
                         )}
-                    </div>
-                </div>
+                    </Form>
+                ) : hasSetupData ? (
+                    <Button
+                        onClick={() => setShowSetupModal(true)}
+                        className="h-11 rounded-lg font-bold"
+                    >
+                        <ShieldCheck />
+                        Continuar configuración
+                    </Button>
+                ) : (
+                    <Form
+                        {...enable.form()}
+                        onSuccess={() => setShowSetupModal(true)}
+                    >
+                        {({ processing }) => (
+                            <Button
+                                type="submit"
+                                disabled={processing}
+                                className="h-11 rounded-lg font-bold"
+                            >
+                                Activar
+                            </Button>
+                        )}
+                    </Form>
+                )
+            }
+        >
+            {twoFactorEnabled && (
+                <TwoFactorRecoveryCodes
+                    recoveryCodesList={recoveryCodesList}
+                    fetchRecoveryCodes={fetchRecoveryCodes}
+                    errors={errors}
+                />
             )}
 
             <TwoFactorSetupModal
@@ -121,6 +123,6 @@ export default function ManageTwoFactor(props: Props) {
                 fetchSetupData={fetchSetupData}
                 errors={errors}
             />
-        </div>
+        </SettingsCard>
     );
 }

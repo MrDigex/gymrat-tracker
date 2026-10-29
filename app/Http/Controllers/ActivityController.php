@@ -21,6 +21,8 @@ class ActivityController extends Controller
     public function index(Request $request, StatsService $stats): Response
     {
         $activities = $request->user()->activities()
+            ->with('splits')
+            ->withCount('splits')
             ->latest('started_at')
             ->paginate(20)
             ->through(fn (Activity $activity) => ActivityResource::make($activity)->resolve($request));

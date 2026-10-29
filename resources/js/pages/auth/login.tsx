@@ -1,6 +1,8 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
+import PasskeyVerify from '@/components/passkey-verify';
 import PasswordInput from '@/components/password-input';
+import { AuthFooterLink } from '@/components/public/auth-footer-link';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,7 +12,6 @@ import { Spinner } from '@/components/ui/spinner';
 import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
-import PasskeyVerify from '@/components/passkey-verify';
 
 type Props = {
     status?: string;
@@ -22,98 +23,109 @@ export default function Login({ status, canResetPassword }: Props) {
         <>
             <Head title="Iniciar sesión" />
 
-            <PasskeyVerify />
+            {status && (
+                <div
+                    role="status"
+                    className="mb-4 rounded-[14px] bg-muted p-3 text-sm font-medium text-trend-up"
+                >
+                    {status}
+                </div>
+            )}
 
             <Form
                 {...store.form()}
                 resetOnSuccess={['password']}
-                className="flex flex-col gap-6"
+                className="flex flex-col gap-4"
             >
                 {({ processing, errors }) => (
                     <>
-                        <div className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">
-                                    Correo electrónico
-                                </Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    name="email"
-                                    required
-                                    autoFocus
-                                    tabIndex={1}
-                                    autoComplete="email"
-                                    placeholder="correo@ejemplo.com"
-                                />
-                                <InputError message={errors.email} />
-                            </div>
-
-                            <div className="grid gap-2">
-                                <div className="flex items-center">
-                                    <Label htmlFor="password">Contraseña</Label>
-                                    {canResetPassword && (
-                                        <TextLink
-                                            href={request()}
-                                            className="ml-auto text-sm"
-                                            tabIndex={5}
-                                        >
-                                            ¿Olvidaste tu contraseña?
-                                        </TextLink>
-                                    )}
-                                </div>
-                                <PasswordInput
-                                    id="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Contraseña"
-                                />
-                                <InputError message={errors.password} />
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                                <Checkbox
-                                    id="remember"
-                                    name="remember"
-                                    tabIndex={3}
-                                />
-                                <Label htmlFor="remember">Recordarme</Label>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                className="mt-4 w-full"
-                                tabIndex={4}
-                                disabled={processing}
-                                data-test="login-button"
-                            >
-                                {processing && <Spinner />}
-                                Iniciar sesión
-                            </Button>
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Correo electrónico</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                name="email"
+                                required
+                                autoFocus
+                                tabIndex={1}
+                                autoComplete="email"
+                                placeholder="correo@ejemplo.com"
+                            />
+                            <InputError message={errors.email} />
                         </div>
 
-                        <div className="text-center text-sm text-muted-foreground">
-                            ¿No tienes cuenta?{' '}
-                            <TextLink href={register()} tabIndex={5}>
-                                Regístrate
-                            </TextLink>
+                        <div className="grid gap-2">
+                            <div className="flex items-center">
+                                <Label htmlFor="password">Contraseña</Label>
+                                {canResetPassword && (
+                                    <TextLink
+                                        href={request()}
+                                        className="ml-auto text-sm font-bold text-primary-text decoration-current"
+                                        tabIndex={5}
+                                    >
+                                        ¿La olvidaste?
+                                    </TextLink>
+                                )}
+                            </div>
+                            <PasswordInput
+                                id="password"
+                                name="password"
+                                required
+                                tabIndex={2}
+                                autoComplete="current-password"
+                                placeholder="Tu contraseña"
+                            />
+                            <InputError message={errors.password} />
                         </div>
+
+                        <label
+                            htmlFor="remember"
+                            className="flex min-h-11 cursor-pointer items-center gap-3 text-[15px]"
+                        >
+                            <Checkbox
+                                id="remember"
+                                name="remember"
+                                tabIndex={3}
+                                className="size-6 rounded-[6px]"
+                            />
+                            Recordarme en este móvil
+                        </label>
+
+                        <Button
+                            type="submit"
+                            tabIndex={4}
+                            disabled={processing}
+                            data-test="login-button"
+                        >
+                            {processing && <Spinner />}
+                            Iniciar sesión
+                        </Button>
                     </>
                 )}
             </Form>
 
-            {status && (
-                <div className="mb-4 text-center text-sm font-medium text-green-600">
-                    {status}
-                </div>
-            )}
+            <div className="mt-4 [&_button]:h-14 [&_button]:rounded-[16px] [&_button]:bg-transparent [&_button]:text-base [&_button]:font-bold [&>.relative]:hidden">
+                <PasskeyVerify
+                    label="Entrar con passkey"
+                    loadingLabel="Comprobando passkey…"
+                />
+            </div>
+
+            <AuthFooterLink>
+                ¿No tienes cuenta?{' '}
+                <TextLink
+                    href={register()}
+                    tabIndex={6}
+                    className="font-bold text-primary-text decoration-current"
+                >
+                    Regístrate gratis
+                </TextLink>
+            </AuthFooterLink>
         </>
     );
 }
 
 Login.layout = {
-    title: 'Inicia sesión en tu cuenta',
-    description: 'Introduce tu correo y contraseña para iniciar sesión',
+    title: 'Vuelve a la barra',
+    description: 'Entra con tu correo y contraseña.',
 };

@@ -2,8 +2,10 @@
 
 use App\Enums\ActivitySource;
 use App\Models\Activity;
+use App\Models\ActivitySplit;
 use App\Models\User;
 use App\Services\StatsService;
+use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
     $this->user = User::factory()->create();
@@ -66,4 +68,15 @@ test('the streak counts consecutive days ending yesterday or today', function ()
     Activity::factory()->for($this->user)->create(['started_at' => now()->subDays(4)]);
 
     expect(app(StatsService::class)->streak($this->user))->toBe(2);
+});
+
+test('the races list includes splits and their count', function () {
+    $activity = Activity::factory()->for($this->user)->create();
+    ActivitySplit::factory()->for($activity)->count(3)->sequence(fn ($sequence) => ['position' => $sequence->index + 1])->create();
+
+    $this->actingAs($this->user)
+        ->get(route('activities.index'))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('activities.data.0.splits_count', 3)
+            ->has('activities.data.0.splits', 3));
 });

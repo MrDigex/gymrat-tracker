@@ -7,6 +7,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
+use Inertia\ExceptionResponse;
+use Inertia\Inertia;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -30,4 +32,24 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
+
+        // Branded error pages. 403/404 always use them; server errors keep
+        // Laravel's debug page while debugging.
+        Inertia::handleExceptionsUsing(function (ExceptionResponse $response) {
+            $status = $response->statusCode();
+            $request = $response->request;
+
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return null;
+            }
+
+            $alwaysBranded = in_array($status, [403, 404], true);
+            $brandedWhenNotDebugging = in_array($status, [419, 500, 503], true) && ! app()->hasDebugModeEnabled();
+
+            if (! $alwaysBranded && ! $brandedWhenNotDebugging) {
+                return null;
+            }
+
+            return $response->render('errors/error', ['status' => $status])->withSharedData();
+        });
     })->create();

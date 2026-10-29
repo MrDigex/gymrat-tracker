@@ -1,23 +1,24 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, Pencil, Share2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
+import type { ReactNode } from 'react';
+import {
+    Metric,
+    SourceBadge,
+    TypeBadge,
+    longDate,
+    paceNumber,
+} from '@/components/activities/activity-ui';
+import {
+    PaceChart,
+    SegmentBars,
+    hyroxBreakdown,
+    paceInsight,
+    pacePoints,
+    stationInsight,
+} from '@/components/activities/split-charts';
 import { ShareDialog, StoryCard } from '@/components/share-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import type { ChartConfig } from '@/components/ui/chart';
-import {
-    ChartContainer,
-    ChartTooltip,
-    ChartTooltipContent,
-} from '@/components/ui/chart';
 import {
     Dialog,
     DialogClose,
@@ -28,14 +29,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     formatDate,
     formatDuration,
@@ -49,321 +42,310 @@ import type { Activity } from '@/types';
 export default function ActivityShow({ activity }: { activity: Activity }) {
     const splits = activity.splits ?? [];
     const isHyrox = activity.type === 'hyrox';
-    const date = formatDate(activity.started_at, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-
-    const stats = [
-        { label: 'Distancia', value: formatKm(activity.distance_m) },
-        { label: 'Tiempo', value: activity.duration_label },
-        { label: 'Ritmo', value: formatPace(activity.pace_seconds_per_km) },
-        {
-            label: 'Desnivel',
-            value:
-                activity.elevation_gain_m !== null
-                    ? `${formatNumber(activity.elevation_gain_m)} m`
-                    : null,
-        },
-        {
-            label: 'FC media',
-            value: activity.avg_hr !== null ? `${activity.avg_hr} ppm` : null,
-        },
-        {
-            label: 'FC máxima',
-            value: activity.max_hr !== null ? `${activity.max_hr} ppm` : null,
-        },
-        {
-            label: 'Calorías',
-            value:
-                activity.calories !== null
-                    ? `${formatNumber(activity.calories)} kcal`
-                    : null,
-        },
-    ].filter((stat): stat is { label: string; value: string } =>
-        Boolean(stat.value),
-    );
 
     return (
         <>
             <Head title={activity.name} />
-            <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0">
-                        <div className="mb-2 flex flex-wrap gap-1.5">
-                            <Badge variant="secondary">
-                                {activity.type_label}
-                            </Badge>
-                            <Badge variant="outline">
-                                {activity.source_label}
-                            </Badge>
+            <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 lg:p-6">
+                <header className="flex flex-wrap items-start gap-3">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="-ml-2 size-11 lg:hidden"
+                        asChild
+                    >
+                        <Link
+                            href={activities.index()}
+                            aria-label="Volver a carreras"
+                        >
+                            <ChevronLeft className="size-6" />
+                        </Link>
+                    </Button>
+                    <div className="order-last flex w-full min-w-0 flex-col gap-1 lg:order-none lg:w-auto lg:flex-1">
+                        <div className="flex flex-wrap gap-1.5">
+                            <TypeBadge activity={activity} />
+                            <SourceBadge activity={activity} />
                         </div>
-                        <h1 className="text-2xl font-bold tracking-tight">
+                        <h1 className="font-num text-[32px] leading-none break-words uppercase lg:text-4xl">
                             {activity.name}
                         </h1>
-                        <p className="text-sm text-muted-foreground capitalize">
-                            {date}
+                        <p className="text-sm text-muted-foreground">
+                            {longDate(activity.started_at, true)}
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <ShareDialog
-                            shareUrl={activity.share_url}
-                            enableShare={activities.share(activity.id)}
-                            title={activity.name}
-                            text={`${activity.name}: ${formatKm(activity.distance_m)} en ${activity.duration_label} (${formatPace(activity.pace_seconds_per_km)})`}
-                            fileName={`carrera-${activity.id}`}
-                            storyCard={
-                                <StoryCard
-                                    badge={activity.type_label}
-                                    title={activity.name}
-                                    subtitle={formatDate(activity.started_at)}
-                                >
-                                    {[
-                                        [
-                                            'Distancia',
-                                            formatKm(activity.distance_m),
-                                        ],
-                                        ['Tiempo', activity.duration_label],
-                                        [
-                                            'Ritmo',
-                                            formatPace(
-                                                activity.pace_seconds_per_km,
-                                            ),
-                                        ],
-                                        ...(activity.avg_hr
-                                            ? [
-                                                  [
-                                                      'FC media',
-                                                      `${activity.avg_hr} ppm`,
-                                                  ],
-                                              ]
-                                            : []),
-                                    ].map(([label, value]) => (
-                                        <div key={label}>
-                                            <div
-                                                style={{
-                                                    fontSize: 36,
-                                                    color: '#a1a1aa',
-                                                    textTransform: 'uppercase',
-                                                    letterSpacing: 4,
-                                                }}
-                                            >
-                                                {label}
-                                            </div>
-                                            <div
-                                                style={{
-                                                    fontSize: 120,
-                                                    fontWeight: 900,
-                                                    lineHeight: 1.1,
-                                                }}
-                                            >
-                                                {value}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </StoryCard>
-                            }
-                        />
-                        <Button variant="outline" asChild>
-                            <Link href={activities.edit(activity.id)}>
-                                <Pencil /> Editar
-                            </Link>
-                        </Button>
-                        <DeleteActivityButton activity={activity} />
-                    </div>
-                </div>
+                    <Actions activity={activity} />
+                </header>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                    {stats.map((stat, index) => (
-                        <div
-                            key={stat.label}
-                            className={
-                                index < 3
-                                    ? 'rounded-xl border bg-card p-4'
-                                    : 'rounded-xl border bg-card/50 p-4'
-                            }
-                        >
-                            <div className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                {stat.label}
-                            </div>
-                            <div
-                                className={
-                                    index < 3
-                                        ? 'mt-1 text-3xl font-bold tabular-nums'
-                                        : 'mt-1 text-xl font-semibold tabular-nums'
-                                }
-                            >
-                                {stat.value}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-
-                {splits.length > 0 && (
-                    <>
-                        <SplitsChart activity={activity} isHyrox={isHyrox} />
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Parciales</CardTitle>
-                            </CardHeader>
-                            <CardContent className="px-0 sm:px-6">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead className="pl-6 sm:pl-2">
-                                                Tramo
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                Distancia
-                                            </TableHead>
-                                            <TableHead className="text-right">
-                                                Tiempo
-                                            </TableHead>
-                                            {!isHyrox && (
-                                                <TableHead className="pr-6 text-right sm:pr-2">
-                                                    Ritmo
-                                                </TableHead>
-                                            )}
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {splits.map((split) => (
-                                            <TableRow key={split.id}>
-                                                <TableCell className="pl-6 font-medium sm:pl-2">
-                                                    {split.label}
-                                                </TableCell>
-                                                <TableCell className="text-right tabular-nums">
-                                                    {split.distance_m
-                                                        ? `${formatNumber(split.distance_m)} m`
-                                                        : '—'}
-                                                </TableCell>
-                                                <TableCell className="text-right tabular-nums">
-                                                    {split.duration_label}
-                                                </TableCell>
-                                                {!isHyrox && (
-                                                    <TableCell className="pr-6 text-right tabular-nums sm:pr-2">
-                                                        {formatPace(
-                                                            split.pace_seconds_per_km,
-                                                        )}
-                                                    </TableCell>
-                                                )}
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </CardContent>
-                        </Card>
-                    </>
+                {isHyrox ? (
+                    <HyroxSummary activity={activity} />
+                ) : (
+                    <RunSummary activity={activity} />
                 )}
+
+                {splits.length > 0 &&
+                    (isHyrox || pacePoints(splits).length === 0 ? (
+                        <section className="rounded-xl bg-card p-4 lg:p-5">
+                            <SegmentBars splits={splits} hyrox={isHyrox} />
+                            {isHyrox && stationInsight(splits) && (
+                                <p className="mt-3 text-[13px] font-semibold text-primary-text">
+                                    {stationInsight(splits)}
+                                </p>
+                            )}
+                        </section>
+                    ) : null)}
             </div>
         </>
     );
 }
 
-const chartConfig = {
-    value: { label: 'Valor', color: 'var(--chart-1)' },
-} satisfies ChartConfig;
-
-function SplitsChart({
-    activity,
-    isHyrox,
-}: {
-    activity: Activity;
-    isHyrox: boolean;
-}) {
-    const data = (activity.splits ?? [])
-        .map((split) => ({
-            label: split.label,
-            value: isHyrox ? split.duration_seconds : split.pace_seconds_per_km,
-        }))
-        .filter((point): point is { label: string; value: number } =>
-            Boolean(point.value),
-        );
-
-    if (data.length === 0) {
-        return null;
-    }
+function Actions({ activity }: { activity: Activity }) {
+    const iconButton = 'size-11 lg:w-auto lg:px-4';
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>
-                    {isHyrox ? 'Tiempo por tramo' : 'Ritmo por parcial'}
-                </CardTitle>
-                <CardDescription>
-                    {isHyrox
-                        ? 'Cuánto tardaste en cada carrera y estación.'
-                        : 'Barras más bajas = parciales más rápidos.'}
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ChartContainer
-                    config={chartConfig}
-                    className="aspect-auto h-64 w-full"
-                >
-                    <BarChart
-                        data={data}
-                        margin={{ left: 0, right: 8, top: 8, bottom: 0 }}
+        <div className="ml-auto flex gap-2">
+            <ShareDialog
+                shareUrl={activity.share_url}
+                enableShare={activities.share(activity.id)}
+                title={activity.name}
+                text={`${activity.name}: ${formatKm(activity.distance_m)} en ${activity.duration_label} (${formatPace(activity.pace_seconds_per_km)})`}
+                fileName={`carrera-${activity.id}`}
+                trigger={
+                    <Button variant="outline" className={iconButton}>
+                        <Share2 aria-hidden />
+                        <span className="sr-only lg:not-sr-only">
+                            Compartir
+                        </span>
+                    </Button>
+                }
+                storyCard={
+                    <StoryCard
+                        badge={activity.type_label}
+                        title={activity.name}
+                        subtitle={formatDate(activity.started_at)}
                     >
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                            dataKey="label"
-                            tickLine={false}
-                            axisLine={false}
-                            interval="preserveStartEnd"
-                            tickFormatter={(value: string) =>
-                                value.length > 10
-                                    ? `${value.slice(0, 9)}…`
-                                    : value
-                            }
-                        />
-                        <YAxis
-                            width={48}
-                            tickLine={false}
-                            axisLine={false}
-                            tickFormatter={(value: number) =>
-                                formatDuration(value)
-                            }
-                        />
-                        <ChartTooltip
-                            cursor={false}
-                            content={
-                                <ChartTooltipContent
-                                    hideIndicator
-                                    formatter={(value) => (
-                                        <span className="font-mono font-medium tabular-nums">
-                                            {isHyrox
-                                                ? formatDuration(Number(value))
-                                                : formatPace(Number(value))}
-                                        </span>
-                                    )}
-                                />
-                            }
-                        />
-                        <Bar
-                            dataKey="value"
-                            fill="var(--color-value)"
-                            radius={[4, 4, 0, 0]}
-                        />
-                    </BarChart>
-                </ChartContainer>
-            </CardContent>
-        </Card>
+                        {[
+                            ['Distancia', formatKm(activity.distance_m)],
+                            ['Tiempo', activity.duration_label],
+                            ['Ritmo', formatPace(activity.pace_seconds_per_km)],
+                            ...(activity.avg_hr
+                                ? [['FC media', `${activity.avg_hr} ppm`]]
+                                : []),
+                        ].map(([label, value]) => (
+                            <div key={label}>
+                                <div
+                                    style={{
+                                        fontSize: 36,
+                                        color: '#a1a1aa',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: 4,
+                                    }}
+                                >
+                                    {label}
+                                </div>
+                                <div
+                                    style={{
+                                        fontSize: 120,
+                                        fontWeight: 900,
+                                        lineHeight: 1.1,
+                                    }}
+                                >
+                                    {value}
+                                </div>
+                            </div>
+                        ))}
+                    </StoryCard>
+                }
+            />
+            <Button variant="outline" className={iconButton} asChild>
+                <Link href={activities.edit(activity.id)}>
+                    <Pencil aria-hidden />
+                    <span className="sr-only lg:not-sr-only">Editar</span>
+                </Link>
+            </Button>
+            <DeleteActivityButton activity={activity} className={iconButton} />
+        </div>
     );
 }
 
-function DeleteActivityButton({ activity }: { activity: Activity }) {
+function HazardCard({ children }: { children: ReactNode }) {
+    return (
+        <section className="overflow-hidden rounded-xl bg-card">
+            <div className="h-[5px] bg-hazard" aria-hidden />
+            <div className="flex flex-col gap-4 p-4 lg:p-5">{children}</div>
+        </section>
+    );
+}
+
+function HyroxSummary({ activity }: { activity: Activity }) {
+    const splits = activity.splits ?? [];
+    const breakdown = hyroxBreakdown(splits, activity.duration_seconds);
+
+    return (
+        <HazardCard>
+            <div>
+                <div className="text-[13px] text-muted-foreground">
+                    Tiempo total
+                </div>
+                <div className="font-num text-6xl leading-none tabular-nums lg:text-7xl">
+                    {activity.duration_label}
+                </div>
+            </div>
+            {splits.length > 0 && (
+                <dl className="grid grid-cols-3 gap-3">
+                    <BreakdownItem
+                        label="Carrera"
+                        value={formatDuration(breakdown.runSeconds)}
+                        className="text-chart-4"
+                    />
+                    <BreakdownItem
+                        label="Estaciones"
+                        value={formatDuration(breakdown.stationSeconds)}
+                        className="text-chart-5"
+                    />
+                    {breakdown.transitionSeconds > 0 && (
+                        <BreakdownItem
+                            label="Transiciones"
+                            value={formatDuration(breakdown.transitionSeconds)}
+                        />
+                    )}
+                </dl>
+            )}
+            <OptionalStats activity={activity} />
+        </HazardCard>
+    );
+}
+
+function BreakdownItem({
+    label,
+    value,
+    className,
+}: {
+    label: string;
+    value: string;
+    className?: string;
+}) {
+    return (
+        <div>
+            <dt className="text-[13px] text-muted-foreground">{label}</dt>
+            <dd className={`font-num text-xl tabular-nums ${className ?? ''}`}>
+                {value}
+            </dd>
+        </div>
+    );
+}
+
+/**
+ * Secondary stats shown under the Hyrox total when present.
+ */
+function OptionalStats({ activity }: { activity: Activity }) {
+    const items = [
+        ['Distancia', formatKm(activity.distance_m)],
+        activity.avg_hr !== null
+            ? [
+                  'Pulso medio / máx.',
+                  `${activity.avg_hr}${activity.max_hr ? ` / ${activity.max_hr}` : ''}`,
+              ]
+            : null,
+        activity.calories !== null
+            ? ['Calorías', `${formatNumber(activity.calories)} kcal`]
+            : null,
+    ].filter((item): item is string[] => item !== null);
+
+    return (
+        <dl className="flex flex-wrap gap-x-6 gap-y-1 border-t pt-3 text-sm">
+            {items.map(([label, value]) => (
+                <div key={label} className="flex gap-1.5">
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="font-semibold tabular-nums">{value}</dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+function RunSummary({ activity }: { activity: Activity }) {
+    const splits = activity.splits ?? [];
+    const insight = paceInsight(splits);
+    const tiles = [
+        { label: 'Distancia', value: formatKm(activity.distance_m) },
+        { label: 'Ritmo', value: paceNumber(activity.pace_seconds_per_km) },
+        activity.elevation_gain_m !== null
+            ? {
+                  label: 'Desnivel',
+                  value: `${formatNumber(activity.elevation_gain_m)} m`,
+              }
+            : null,
+        activity.avg_hr !== null || activity.max_hr !== null
+            ? {
+                  label: 'Pulso medio / máx.',
+                  value: `${activity.avg_hr ?? '—'} / ${activity.max_hr ?? '—'}`,
+              }
+            : null,
+    ].filter((tile): tile is { label: string; value: string } => tile !== null);
+
+    return (
+        <HazardCard>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-3 lg:grid-cols-5">
+                <Metric
+                    label="Tiempo"
+                    value={activity.duration_label}
+                    highlight
+                    size="lg"
+                />
+                {tiles.map((tile) => (
+                    <div
+                        key={tile.label}
+                        className={
+                            tile.label.startsWith('Pulso')
+                                ? 'col-span-2 lg:col-span-1'
+                                : undefined
+                        }
+                    >
+                        <Metric
+                            label={tile.label}
+                            value={tile.value}
+                            size="lg"
+                        />
+                    </div>
+                ))}
+            </div>
+            {activity.calories !== null && (
+                <p className="-mt-2 text-sm text-muted-foreground">
+                    {formatNumber(activity.calories)} kcal
+                </p>
+            )}
+            {pacePoints(splits).length > 0 && (
+                <>
+                    <PaceChart splits={splits} />
+                    {insight && (
+                        <p className="text-[13px] font-semibold text-primary-text">
+                            {insight}
+                        </p>
+                    )}
+                </>
+            )}
+        </HazardCard>
+    );
+}
+
+function DeleteActivityButton({
+    activity,
+    className,
+}: {
+    activity: Activity;
+    className?: string;
+}) {
     const [processing, setProcessing] = useState(false);
 
     return (
         <Dialog>
             <DialogTrigger asChild>
-                <Button variant="outline" aria-label="Eliminar carrera">
-                    <Trash2 />
+                <Button
+                    variant="outline"
+                    className={`text-destructive hover:text-destructive ${className ?? ''}`}
+                >
+                    <Trash2 aria-hidden />
+                    <span className="sr-only lg:not-sr-only">Eliminar</span>
                 </Button>
             </DialogTrigger>
             <DialogContent>

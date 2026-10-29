@@ -12,6 +12,7 @@ use App\Models\RoutineExercise;
 use App\Models\WorkoutSession;
 use App\Services\PersonalRecords;
 use App\Services\Progression\ProgressionSuggester;
+use App\Services\StatsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -71,7 +72,7 @@ class WorkoutSessionController extends Controller
         return to_route('workouts.show', $session);
     }
 
-    public function show(Request $request, WorkoutSession $workout, ProgressionSuggester $suggester, PersonalRecords $personalRecords): Response
+    public function show(Request $request, WorkoutSession $workout, ProgressionSuggester $suggester, PersonalRecords $personalRecords, StatsService $stats): Response
     {
         $this->authorize('view', $workout);
 
@@ -98,6 +99,7 @@ class WorkoutSessionController extends Controller
             'session' => WorkoutSessionResource::make($workout)->resolve($request),
             'entries' => $entries,
             'records' => $personalRecords->forSession($workout),
+            'streakDays' => $workout->isFinished() ? $stats->streak($request->user()) : null,
         ]);
     }
 

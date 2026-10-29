@@ -22,6 +22,8 @@ class IntegrationController extends Controller
                 'configured' => $strava->isConfigured(),
                 'connected' => $account !== null,
                 'athlete_id' => $account?->athlete_id,
+                'athlete_name' => $account?->athlete_name,
+                'last_import_at' => $request->user()->activities()->where('source', 'strava')->latest()->value('created_at')?->toIso8601String(),
                 'connected_at' => $account?->created_at?->toIso8601String(),
                 'imported_count' => $request->user()->activities()->where('source', 'strava')->count(),
             ],

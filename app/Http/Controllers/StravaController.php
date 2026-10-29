@@ -43,6 +43,7 @@ class StravaController extends Controller
 
         $request->user()->stravaAccount()->updateOrCreate([], [
             'athlete_id' => $tokens['athlete']['id'],
+            'athlete_name' => trim(($tokens['athlete']['firstname'] ?? '').' '.($tokens['athlete']['lastname'] ?? '')) ?: null,
             'access_token' => $tokens['access_token'],
             'refresh_token' => $tokens['refresh_token'],
             'expires_at' => now()->setTimestamp($tokens['expires_at']),

@@ -14,12 +14,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property int $user_id
  * @property int $athlete_id
+ * @property string|null $athlete_name
  * @property string $access_token
  * @property string $refresh_token
  * @property CarbonImmutable $expires_at
  * @property string|null $scopes
  */
-#[Fillable(['athlete_id', 'access_token', 'refresh_token', 'expires_at', 'scopes'])]
+#[Fillable(['athlete_id', 'athlete_name', 'access_token', 'refresh_token', 'expires_at', 'scopes'])]
 #[Hidden(['access_token', 'refresh_token'])]
 class StravaAccount extends Model
 {

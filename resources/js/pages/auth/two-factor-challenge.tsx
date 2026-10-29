@@ -25,8 +25,8 @@ export default function TwoFactorChallenge() {
             return {
                 title: 'Código de recuperación',
                 description:
-                    'Confirma el acceso a tu cuenta introduciendo uno de tus códigos de recuperación de emergencia.',
-                toggleText: 'iniciar sesión con un código de autenticación',
+                    'Escribe uno de los códigos de recuperación que guardaste al activar la verificación en dos pasos.',
+                toggleText: 'Usar el código de la app',
             };
         }
 
@@ -51,12 +51,12 @@ export default function TwoFactorChallenge() {
 
     return (
         <>
-            <Head title="Autenticación en dos pasos" />
+            <Head title="Verificación en dos pasos" />
 
-            <div className="space-y-6">
+            <div>
                 <Form
                     {...store.form()}
-                    className="space-y-4"
+                    className="flex flex-col gap-4"
                     resetOnError
                     resetOnSuccess={!showRecoveryInput}
                 >
@@ -67,7 +67,9 @@ export default function TwoFactorChallenge() {
                                     <Input
                                         name="recovery_code"
                                         type="text"
-                                        placeholder="Introduce el código de recuperación"
+                                        placeholder="xxxxxxxxxx-xxxxxxxxxx"
+                                        aria-label="Código de recuperación"
+                                        autoComplete="one-time-code"
                                         autoFocus={showRecoveryInput}
                                         required
                                     />
@@ -76,8 +78,8 @@ export default function TwoFactorChallenge() {
                                     />
                                 </>
                             ) : (
-                                <div className="flex flex-col items-center justify-center space-y-3 text-center">
-                                    <div className="flex w-full items-center justify-center">
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex w-full">
                                         <InputOTP
                                             name="code"
                                             maxLength={OTP_MAX_LENGTH}
@@ -86,14 +88,17 @@ export default function TwoFactorChallenge() {
                                             disabled={processing}
                                             pattern={REGEXP_ONLY_DIGITS}
                                             autoFocus
+                                            aria-label="Código de 6 cifras"
+                                            containerClassName="w-full"
                                         >
-                                            <InputOTPGroup>
+                                            <InputOTPGroup className="grid w-full grid-cols-6 gap-2">
                                                 {Array.from(
                                                     { length: OTP_MAX_LENGTH },
                                                     (_, index) => (
                                                         <InputOTPSlot
                                                             key={index}
                                                             index={index}
+                                                            className="h-16 w-full rounded-[14px] border bg-card font-num text-2xl shadow-none first:rounded-[14px] first:border-l last:rounded-[14px] [&.ring-1]:border-2 [&.ring-1]:border-primary [&.ring-1]:ring-0"
                                                         />
                                                     ),
                                                 )}
@@ -104,19 +109,14 @@ export default function TwoFactorChallenge() {
                                 </div>
                             )}
 
-                            <Button
-                                type="submit"
-                                className="w-full"
-                                disabled={processing}
-                            >
-                                Continuar
+                            <Button type="submit" disabled={processing}>
+                                Verificar
                             </Button>
 
-                            <div className="text-center text-sm text-muted-foreground">
-                                <span>o puedes </span>
+                            <div className="text-center">
                                 <button
                                     type="button"
-                                    className="cursor-pointer text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
+                                    className="min-h-11 cursor-pointer px-2 text-[15px] font-bold text-primary-text underline underline-offset-4"
                                     onClick={() =>
                                         toggleRecoveryMode(clearErrors)
                                     }

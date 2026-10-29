@@ -1,33 +1,24 @@
-import { Form, Head, usePage } from '@inertiajs/react';
+import { Form, Head, Link, usePage } from '@inertiajs/react';
 import {
-    Activity,
     AlertTriangle,
     Check,
+    ChevronLeft,
+    ChevronRight,
     Copy,
-    Download,
-    KeyRound,
-    Link2Off,
-    Smartphone,
-    Trash2,
-    Watch,
+    Plus,
+    Zap,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useClipboard } from '@/hooks/use-clipboard';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
+import activitiesRoutes from '@/routes/activities';
 import { index as integrationsIndex } from '@/routes/integrations';
 import { backfill, connect, disconnect } from '@/routes/integrations/strava';
 import {
@@ -56,8 +47,8 @@ type IntegrationsProps = {
 
 const EXAMPLE_BODY = {
     started_at: '2026-10-29T07:30:00+01:00',
-    distance_km: 10.02,
-    duration_minutes: 52.5,
+    distance_km: 10,
+    duration: '0:54:30',
     type: 'carrera',
     name: 'Rodaje matinal',
     avg_hr: 148,
@@ -78,8 +69,9 @@ const FIELDS: { name: string; description: string; required?: boolean }[] = [
         required: true,
     },
     {
-        name: 'duration_minutes / duration_seconds',
-        description: 'Duración en minutos o en segundos (uno de los dos).',
+        name: 'duration',
+        description:
+            'Duración como "h:mm:ss" o "mm:ss". También vale duration_seconds o duration_minutes.',
         required: true,
     },
     {
@@ -98,6 +90,29 @@ const FIELDS: { name: string; description: string; required?: boolean }[] = [
     },
 ];
 
+function relativeDay(value: string): string {
+    const date = new Date(value);
+    const today = new Date();
+    const days = Math.round(
+        (new Date(today.toDateString()).getTime() -
+            new Date(date.toDateString()).getTime()) /
+            86_400_000,
+    );
+
+    if (days === 0) {
+        return 'hoy';
+    }
+
+    if (days === 1) {
+        return 'ayer';
+    }
+
+    return formatDate(value, { day: 'numeric', month: 'short' }).replace(
+        '.',
+        '',
+    );
+}
+
 export default function IntegrationsIndex({
     strava,
     tokens,
@@ -111,11 +126,30 @@ export default function IntegrationsIndex({
     return (
         <>
             <Head title="Integraciones" />
-            <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 md:p-6">
-                <Heading
-                    title="Integraciones"
-                    description="Importa automáticamente tus carreras del Apple Watch u otros relojes"
-                />
+            <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 p-4 lg:p-6">
+                <header className="flex items-center gap-2">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="-ml-2 size-11 lg:hidden"
+                        asChild
+                    >
+                        <Link
+                            href={activitiesRoutes.index()}
+                            aria-label="Volver a carreras"
+                        >
+                            <ChevronLeft className="size-6" />
+                        </Link>
+                    </Button>
+                    <div>
+                        <h1 className="font-num text-[32px] leading-none uppercase lg:text-5xl">
+                            Integraciones
+                        </h1>
+                        <p className="mt-1 hidden text-muted-foreground lg:block">
+                            Trae tus carreras del Apple Watch sin escribir nada.
+                        </p>
+                    </div>
+                </header>
 
                 <StravaSection strava={strava} />
 
@@ -130,6 +164,33 @@ export default function IntegrationsIndex({
     );
 }
 
+function SectionCard({
+    icon,
+    title,
+    subtitle,
+    children,
+}: {
+    icon: ReactNode;
+    title: string;
+    subtitle: ReactNode;
+    children: ReactNode;
+}) {
+    return (
+        <section className="flex flex-col gap-4 rounded-xl bg-card p-4 lg:p-5">
+            <div className="flex items-center gap-3">
+                {icon}
+                <div className="min-w-0">
+                    <h2 className="text-lg leading-tight font-bold">{title}</h2>
+                    <div className="text-sm text-muted-foreground">
+                        {subtitle}
+                    </div>
+                </div>
+            </div>
+            {children}
+        </section>
+    );
+}
+
 function StravaSection({ strava }: { strava: IntegrationsProps['strava'] }) {
     const webhookUrl =
         typeof window === 'undefined'
@@ -137,189 +198,179 @@ function StravaSection({ strava }: { strava: IntegrationsProps['strava'] }) {
             : `${window.location.origin}${stravaWebhook.url()}`;
 
     return (
-        <Card>
-            <CardHeader>
-                <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="flex items-center gap-2">
-                        <Activity className="size-5 text-[#fc4c02]" />
-                        Strava
-                    </CardTitle>
-                    <Badge variant="secondary">Recomendado</Badge>
-                    {strava.connected && (
-                        <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">
-                            <Check />
-                            Conectado
-                        </Badge>
-                    )}
-                </div>
-                <CardDescription>
-                    La forma más sencilla de traer tus carreras del Apple Watch
-                    sin hacer nada a mano.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-                <FlowSteps
-                    steps={[
-                        {
-                            icon: <Watch className="size-4" />,
-                            label: 'Apple Watch',
-                        },
-                        {
-                            icon: <Smartphone className="size-4" />,
-                            label: 'App Salud',
-                        },
-                        {
-                            icon: <Activity className="size-4" />,
-                            label: 'Strava',
-                        },
-                        { icon: <Check className="size-4" />, label: 'GymRat' },
-                    ]}
-                />
-                <p className="text-sm text-muted-foreground">
-                    Instala Strava en tu iPhone y, en{' '}
-                    <em>
-                        Ajustes → Aplicaciones, servicios y dispositivos → Salud
-                    </em>
-                    , activa la subida automática de entrenamientos. Cada
-                    carrera que grabes con el Apple Watch pasará a Strava y, en
-                    cuanto la conectes aquí, llegará sola a GymRat.
-                </p>
-
-                {!strava.configured ? (
-                    <Alert>
-                        <AlertTriangle />
-                        <AlertTitle>
-                            Strava no está configurado en este servidor
-                        </AlertTitle>
-                        <AlertDescription>
-                            <p>El administrador debe completar estos pasos:</p>
-                            <ol className="list-decimal space-y-1 pl-5">
-                                <li>
-                                    Crear una aplicación en{' '}
-                                    <a
-                                        href="https://www.strava.com/settings/api"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="font-medium underline underline-offset-4"
-                                    >
-                                        strava.com/settings/api
-                                    </a>{' '}
-                                    con el dominio de esta web como
-                                    «Authorization Callback Domain».
-                                </li>
-                                <li>
-                                    Añadir al <code>.env</code> las variables{' '}
-                                    <code>STRAVA_CLIENT_ID</code>,{' '}
-                                    <code>STRAVA_CLIENT_SECRET</code> y{' '}
-                                    <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code> (un
-                                    texto secreto cualquiera).
-                                </li>
-                                <li>
-                                    Registrar el webhook de Strava apuntando a{' '}
-                                    <code className="break-all">
-                                        {webhookUrl}
-                                    </code>{' '}
-                                    con ese mismo verify token, para recibir las
-                                    actividades nuevas automáticamente.
-                                </li>
-                            </ol>
-                        </AlertDescription>
-                    </Alert>
-                ) : strava.connected ? (
-                    <div className="space-y-4">
-                        <dl className="grid gap-4 text-sm sm:grid-cols-3">
-                            <div>
-                                <dt className="text-muted-foreground">
-                                    ID de atleta
-                                </dt>
-                                <dd className="font-medium">
-                                    {strava.athlete_id ?? '—'}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted-foreground">
-                                    Conectado desde
-                                </dt>
-                                <dd className="font-medium">
-                                    {formatDate(strava.connected_at)}
-                                </dd>
-                            </div>
-                            <div>
-                                <dt className="text-muted-foreground">
-                                    Carreras importadas
-                                </dt>
-                                <dd className="font-medium">
-                                    {strava.imported_count}
-                                </dd>
-                            </div>
-                        </dl>
-                        <div className="flex flex-wrap gap-2">
-                            <Form
-                                {...backfill.form()}
-                                options={{ preserveScroll: true }}
-                            >
-                                {({ processing }) => (
-                                    <Button type="submit" disabled={processing}>
-                                        <Download />
-                                        Importar últimos 30 días
-                                    </Button>
-                                )}
-                            </Form>
-                            <Form
-                                {...disconnect.form()}
-                                options={{ preserveScroll: true }}
-                                onBefore={() =>
-                                    confirm(
-                                        '¿Seguro que quieres desconectar Strava? Las carreras ya importadas se mantendrán.',
-                                    )
-                                }
-                            >
-                                {({ processing }) => (
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                        disabled={processing}
-                                    >
-                                        <Link2Off />
-                                        Desconectar
-                                    </Button>
-                                )}
-                            </Form>
-                        </div>
-                    </div>
+        <SectionCard
+            icon={
+                <span
+                    className="grid size-12 shrink-0 place-items-center rounded-lg bg-[#fc4c02] font-num text-xl text-white"
+                    aria-hidden
+                >
+                    S
+                </span>
+            }
+            title="Strava"
+            subtitle={
+                strava.connected ? (
+                    <span className="flex items-center gap-1.5 text-success">
+                        <span
+                            className="size-2 rounded-full bg-success"
+                            aria-hidden
+                        />
+                        Conectado desde el {formatDate(strava.connected_at)}
+                    </span>
                 ) : (
+                    'Recomendado: la forma más sencilla, sin hacer nada a mano'
+                )
+            }
+        >
+            <FlowChain steps={['Apple Watch', 'Salud', 'Strava', 'GymRat']} />
+
+            {!strava.configured ? (
+                <div className="flex gap-3 rounded-lg border border-dashed p-4 text-sm">
+                    <AlertTriangle
+                        className="mt-0.5 size-5 shrink-0 text-primary-text"
+                        aria-hidden
+                    />
+                    <div className="flex flex-col gap-2">
+                        <p className="font-bold">
+                            Strava no está configurado en este servidor
+                        </p>
+                        <p className="text-muted-foreground">
+                            El administrador debe completar estos pasos:
+                        </p>
+                        <ol className="list-decimal space-y-1 pl-5 text-muted-foreground">
+                            <li>
+                                Crear una aplicación en{' '}
+                                <a
+                                    href="https://www.strava.com/settings/api"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="font-medium text-foreground underline underline-offset-4"
+                                >
+                                    strava.com/settings/api
+                                </a>{' '}
+                                con el dominio de esta web como «Authorization
+                                Callback Domain».
+                            </li>
+                            <li>
+                                Añadir al <code>.env</code> las variables{' '}
+                                <code>STRAVA_CLIENT_ID</code>,{' '}
+                                <code>STRAVA_CLIENT_SECRET</code> y{' '}
+                                <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code> (un
+                                texto secreto cualquiera).
+                            </li>
+                            <li>
+                                Registrar el webhook de Strava apuntando a{' '}
+                                <code className="break-all">{webhookUrl}</code>{' '}
+                                con ese mismo verify token, para recibir las
+                                actividades nuevas automáticamente.
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            ) : strava.connected ? (
+                <>
+                    <p className="text-sm">
+                        Tus carreras del reloj llegan solas: en cuanto Strava
+                        recibe una actividad nueva, avisa a GymRat y aparece al
+                        momento.{' '}
+                        <span className="text-muted-foreground">
+                            {strava.imported_count === 1
+                                ? 'Llevas 1 carrera importada.'
+                                : `Llevas ${strava.imported_count} carreras importadas.`}
+                        </span>
+                    </p>
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                        <Form
+                            {...backfill.form()}
+                            options={{ preserveScroll: true }}
+                        >
+                            {({ processing }) => (
+                                <Button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="h-12 w-full rounded-xl bg-foreground font-bold text-background hover:bg-foreground/90"
+                                >
+                                    Importar últimos 30 días
+                                </Button>
+                            )}
+                        </Form>
+                        <Form
+                            {...disconnect.form()}
+                            options={{ preserveScroll: true }}
+                            onBefore={() =>
+                                confirm(
+                                    '¿Seguro que quieres desconectar Strava? Las carreras ya importadas se mantendrán.',
+                                )
+                            }
+                        >
+                            {({ processing }) => (
+                                <Button
+                                    type="submit"
+                                    variant="outline"
+                                    disabled={processing}
+                                    className="h-12 rounded-xl font-bold text-destructive hover:text-destructive"
+                                >
+                                    Desconectar
+                                </Button>
+                            )}
+                        </Form>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <p className="text-sm text-muted-foreground">
+                        Instala Strava en tu iPhone y, en{' '}
+                        <em>
+                            Ajustes → Aplicaciones, servicios y dispositivos →
+                            Salud
+                        </em>
+                        , activa la subida automática de entrenamientos. Cada
+                        carrera que grabes con el Apple Watch pasará a Strava y,
+                        en cuanto la conectes aquí, llegará sola a GymRat.
+                    </p>
                     <Button
                         asChild
-                        className="bg-[#fc4c02] text-white hover:bg-[#e04402]"
+                        className="h-12 rounded-xl bg-[#fc4c02] font-bold text-white hover:bg-[#e04402]"
                     >
                         {/* Full page visit: the server redirects to Strava's OAuth screen. */}
-                        <a href={connect.url()}>
-                            <Activity />
-                            Conectar con Strava
-                        </a>
+                        <a href={connect.url()}>Conectar con Strava</a>
                     </Button>
-                )}
-            </CardContent>
-        </Card>
+                </>
+            )}
+        </SectionCard>
     );
 }
 
-function FlowSteps({ steps }: { steps: { icon: ReactNode; label: string }[] }) {
+function FlowChain({ steps }: { steps: string[] }) {
     return (
-        <ol className="flex flex-wrap items-center gap-2 text-sm">
-            {steps.map((step, index) => (
-                <li key={step.label} className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 font-medium">
-                        {step.icon}
-                        {step.label}
-                    </span>
-                    {index < steps.length - 1 && (
-                        <span className="text-muted-foreground" aria-hidden>
-                            →
+        <ol
+            className="flex flex-wrap items-center gap-x-1.5 gap-y-2 text-[13px] font-bold"
+            aria-label="Cómo llegan tus carreras"
+        >
+            {steps.map((step, index) => {
+                const last = index === steps.length - 1;
+
+                return (
+                    <li key={step} className="flex items-center gap-1.5">
+                        <span
+                            className={cn(
+                                'rounded-full px-3 py-1',
+                                last
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-secondary',
+                            )}
+                        >
+                            {step}
                         </span>
-                    )}
-                </li>
-            ))}
+                        {!last && (
+                            <ChevronRight
+                                className="size-4 text-muted-foreground"
+                                aria-hidden
+                            />
+                        )}
+                    </li>
+                );
+            })}
         </ol>
     );
 }
@@ -335,234 +386,233 @@ function ShortcutSection({
     shortcutImported: number;
     plainTextToken: string | null;
 }) {
-    const exampleJson = JSON.stringify(EXAMPLE_BODY, null, 2);
+    const [creating, setCreating] = useState(false);
+    const token = plainTextToken ?? '$TOKEN';
     const curl = [
-        `curl -X POST '${apiEndpoint}' \\`,
-        `  -H 'Authorization: Bearer ${plainTextToken ?? 'TU_TOKEN'}' \\`,
-        `  -H 'Accept: application/json' \\`,
-        `  -H 'Content-Type: application/json' \\`,
-        `  -d '${JSON.stringify({ started_at: EXAMPLE_BODY.started_at, distance_km: EXAMPLE_BODY.distance_km, duration_minutes: EXAMPLE_BODY.duration_minutes })}'`,
+        `curl -X POST ${apiEndpoint} \\`,
+        `  -H "Authorization: Bearer ${token}" \\`,
+        `  -H "Accept: application/json" \\`,
+        `  -H "Content-Type: application/json" \\`,
+        `  -d '${JSON.stringify({ started_at: EXAMPLE_BODY.started_at, distance_km: EXAMPLE_BODY.distance_km, duration: EXAMPLE_BODY.duration })}'`,
     ].join('\n');
+    const exampleJson = JSON.stringify(EXAMPLE_BODY, null, 2);
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="size-5" />
-                    Atajo de iOS (Atajos / Shortcuts)
-                </CardTitle>
-                <CardDescription>
-                    Alternativa sin Strava: un atajo de iPhone lee tu última
-                    carrera de la app Salud y la envía a GymRat.{' '}
-                    {shortcutImported > 0 &&
-                        `Llevas ${shortcutImported} ${shortcutImported === 1 ? 'carrera importada' : 'carreras importadas'} con el atajo.`}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-8">
-                <section className="space-y-4">
-                    <h3 className="flex items-center gap-2 font-medium">
-                        <KeyRound className="size-4" />
-                        1. Crea un token de acceso
-                    </h3>
+        <SectionCard
+            icon={
+                <span
+                    className="grid size-12 shrink-0 place-items-center rounded-lg bg-foreground text-background"
+                    aria-hidden
+                >
+                    <Zap className="size-6" />
+                </span>
+            }
+            title="Atajo de iOS"
+            subtitle={
+                shortcutImported > 0
+                    ? `Envía entrenos desde Salud sin Strava. Llevas ${shortcutImported} ${shortcutImported === 1 ? 'carrera importada' : 'carreras importadas'}.`
+                    : 'Envía entrenos desde Salud sin Strava'
+            }
+        >
+            {plainTextToken && <NewTokenAlert token={plainTextToken} />}
 
-                    {plainTextToken && <NewTokenAlert token={plainTextToken} />}
-
-                    <Form
-                        {...storeToken.form()}
-                        options={{ preserveScroll: true }}
-                        resetOnSuccess
-                        className="flex flex-wrap items-start gap-2"
-                    >
-                        {({ processing, errors }) => (
-                            <>
-                                <div className="grid min-w-56 flex-1 gap-1.5">
-                                    <Label
-                                        htmlFor="token-name"
-                                        className="sr-only"
+            {tokens.length > 0 && (
+                <ul className="flex flex-col divide-y">
+                    {tokens.map((item) => (
+                        <li
+                            key={item.id}
+                            className="flex items-center gap-3 py-3 first:pt-0"
+                        >
+                            <div className="min-w-0 flex-1">
+                                <p className="truncate font-bold">
+                                    {item.name}
+                                </p>
+                                <p className="text-[13px] text-muted-foreground">
+                                    {item.last_used_at
+                                        ? `Último uso: ${relativeDay(item.last_used_at)}`
+                                        : `Creado ${item.created_at ? relativeDay(item.created_at) : ''}, nunca usado`}
+                                </p>
+                            </div>
+                            <Form
+                                {...destroyToken.form(item.id)}
+                                options={{ preserveScroll: true }}
+                                onBefore={() =>
+                                    confirm(
+                                        `¿Revocar el token «${item.name}»? El atajo que lo use dejará de funcionar.`,
+                                    )
+                                }
+                            >
+                                {({ processing }) => (
+                                    <Button
+                                        type="submit"
+                                        variant="outline"
+                                        disabled={processing}
+                                        className="h-11 rounded-lg font-bold text-destructive hover:text-destructive"
                                     >
-                                        Nombre del token
-                                    </Label>
-                                    <Input
-                                        id="token-name"
-                                        name="name"
-                                        placeholder="Ej.: iPhone de Ana"
-                                        maxLength={60}
-                                        required
-                                    />
-                                    <InputError message={errors.name} />
-                                </div>
-                                <Button type="submit" disabled={processing}>
-                                    Crear token
+                                        Revocar
+                                    </Button>
+                                )}
+                            </Form>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            {creating ? (
+                <Form
+                    {...storeToken.form()}
+                    options={{ preserveScroll: true }}
+                    resetOnSuccess
+                    onSuccess={() => setCreating(false)}
+                    className="flex flex-col gap-2 rounded-xl border border-dashed p-3"
+                >
+                    {({ processing, errors }) => (
+                        <>
+                            <Label htmlFor="token-name">
+                                Nombre del token (el dispositivo que lo usará)
+                            </Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    id="token-name"
+                                    name="name"
+                                    placeholder="iPhone de Ana"
+                                    maxLength={60}
+                                    className="h-11 flex-1"
+                                    autoFocus
+                                    required
+                                />
+                                <Button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="h-11 rounded-lg font-bold"
+                                >
+                                    Crear
                                 </Button>
-                            </>
-                        )}
-                    </Form>
-
-                    {tokens.length > 0 ? (
-                        <ul className="divide-y rounded-lg border">
-                            {tokens.map((token) => (
-                                <li
-                                    key={token.id}
-                                    className="flex items-center gap-3 px-4 py-3"
-                                >
-                                    <KeyRound className="size-4 shrink-0 text-muted-foreground" />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate font-medium">
-                                            {token.name}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            Creado el{' '}
-                                            {formatDate(token.created_at)} ·{' '}
-                                            {token.last_used_at
-                                                ? `Último uso: ${formatDateTime(token.last_used_at)}`
-                                                : 'Nunca usado'}
-                                        </p>
-                                    </div>
-                                    <Form
-                                        {...destroyToken.form(token.id)}
-                                        options={{ preserveScroll: true }}
-                                        onBefore={() =>
-                                            confirm(
-                                                `¿Revocar el token «${token.name}»? El atajo que lo use dejará de funcionar.`,
-                                            )
-                                        }
-                                    >
-                                        {({ processing }) => (
-                                            <Button
-                                                type="submit"
-                                                variant="ghost"
-                                                size="sm"
-                                                disabled={processing}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 />
-                                                Revocar
-                                            </Button>
-                                        )}
-                                    </Form>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">
-                            Aún no has creado ningún token.
-                        </p>
+                            </div>
+                            <InputError message={errors.name} />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-11 self-start"
+                                onClick={() => setCreating(false)}
+                            >
+                                Cancelar
+                            </Button>
+                        </>
                     )}
-                </section>
+                </Form>
+            ) : (
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="h-12 rounded-xl border-dashed bg-transparent font-bold"
+                    onClick={() => setCreating(true)}
+                >
+                    <Plus /> Crear token
+                </Button>
+            )}
 
-                <section className="space-y-3">
-                    <h3 className="font-medium">
-                        2. Crea el atajo en tu iPhone
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                        Los nombres de las acciones cambian según la versión de
-                        iOS y el idioma del iPhone, así que puede que tengas que
-                        adaptar algún paso.
-                    </p>
-                    <ol className="list-decimal space-y-2 pl-5 text-sm">
-                        <li>
-                            Abre la app <strong>Atajos</strong> y crea un atajo
-                            nuevo, por ejemplo «Enviar carrera a GymRat».
-                        </li>
-                        <li>
-                            Añade la acción{' '}
-                            <strong>Buscar muestras de salud</strong> («Find
-                            Health Samples»). Tipo:{' '}
-                            <strong>Entrenamientos</strong> (Workouts), filtra
-                            por tipo de entrenamiento <em>Carrera</em>, ordena
-                            por fecha de inicio (más reciente primero) y limita
-                            a <strong>1</strong> resultado. La primera vez iOS
-                            te pedirá permiso para leer Salud.
-                        </li>
-                        <li>
-                            Añade{' '}
-                            <strong>
-                                Obtener detalles de muestras de salud
-                            </strong>{' '}
-                            (o usa directamente las propiedades de la variable)
-                            para sacar la <em>fecha de inicio</em>, la{' '}
-                            <em>duración</em> y la <em>distancia</em>.
-                        </li>
-                        <li>
-                            Si la fecha no sale en formato ISO, pásala por{' '}
-                            <strong>Formatear fecha</strong> con el formato{' '}
-                            <strong>ISO 8601</strong>.
-                        </li>
-                        <li>
-                            Añade <strong>Obtener contenido de URL</strong>{' '}
-                            («Get Contents of URL») con:
-                            <ul className="mt-1 list-disc space-y-1 pl-5">
-                                <li>
-                                    URL:{' '}
-                                    <code className="break-all">
-                                        {apiEndpoint}
-                                    </code>
-                                </li>
-                                <li>
-                                    Método: <strong>POST</strong>
-                                </li>
-                                <li>
-                                    Encabezados: <code>Authorization</code> ={' '}
-                                    <code>Bearer TU_TOKEN</code> y{' '}
-                                    <code>Accept</code> ={' '}
-                                    <code>application/json</code>
-                                </li>
-                                <li>
-                                    Cuerpo de la solicitud:{' '}
-                                    <strong>JSON</strong>, con los campos de
-                                    abajo (al menos <code>started_at</code>,{' '}
-                                    <code>distance_km</code> y{' '}
-                                    <code>duration_minutes</code>) usando las
-                                    variables de los pasos anteriores.
-                                </li>
-                            </ul>
-                        </li>
-                        <li>
-                            Opcional: en la pestaña{' '}
-                            <strong>Automatización</strong> de Atajos crea una
-                            automatización que lo ejecute, por ejemplo, al
-                            terminar un entrenamiento en el Apple Watch o cada
-                            noche.
-                        </li>
-                    </ol>
-                    <p className="text-sm text-muted-foreground">
-                        Puedes ejecutarlo tantas veces como quieras: las
-                        carreras duplicadas (misma hora de inicio) se ignoran.
-                    </p>
-                </section>
+            <div className="flex flex-col gap-3">
+                <h3 className="font-bold">Crea el atajo en tu iPhone</h3>
+                <ol className="flex flex-col gap-3 text-sm">
+                    <Step number={1}>
+                        Crea un token arriba y cópialo: solo se muestra una vez.
+                    </Step>
+                    <Step number={2}>
+                        En la app <strong>Atajos</strong>, crea un atajo nuevo
+                        con <strong>Buscar muestras de salud</strong>:
+                        entrenamientos de tipo <em>Carrera</em>, ordenados por
+                        fecha de inicio (el más reciente) y límite 1. Saca su
+                        fecha de inicio, duración y distancia.
+                    </Step>
+                    <Step number={3}>
+                        Añade <strong>Obtener contenido de URL</strong>: método
+                        POST a{' '}
+                        <code className="rounded bg-muted px-1 break-all">
+                            {apiEndpoint}
+                        </code>
+                        , cabecera <code>Authorization</code> ={' '}
+                        <code>Bearer</code> + tu token, y cuerpo JSON con{' '}
+                        <code>started_at</code>, <code>distance_km</code> y{' '}
+                        <code>duration</code> (h:mm:ss).
+                    </Step>
+                    <Step number={4}>
+                        Opcional: en <strong>Automatización</strong>, crea una
+                        que ejecute el atajo «Al terminar un entreno».
+                    </Step>
+                </ol>
+                <p className="text-[13px] text-muted-foreground">
+                    Los nombres de las acciones cambian según la versión de iOS
+                    y el idioma del iPhone, así que puede que tengas que adaptar
+                    algún paso. Puedes ejecutarlo tantas veces como quieras: las
+                    carreras con la misma hora de inicio no se duplican.
+                </p>
+            </div>
 
-                <section className="space-y-3">
-                    <h3 className="font-medium">Campos aceptados</h3>
-                    <div className="overflow-hidden rounded-lg border">
-                        <dl className="divide-y text-sm">
-                            {FIELDS.map((field) => (
-                                <div
-                                    key={field.name}
-                                    className="grid gap-1 px-4 py-2 sm:grid-cols-[16rem_1fr]"
-                                >
-                                    <dt className="font-mono text-xs leading-5">
-                                        {field.name}
-                                        {field.required && (
-                                            <span className="ml-1 text-destructive">
-                                                *
-                                            </span>
-                                        )}
-                                    </dt>
-                                    <dd className="text-muted-foreground">
-                                        {field.description}
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </div>
-                    <CodeBlock
-                        label="Ejemplo de cuerpo JSON"
-                        code={exampleJson}
+            <Tabs defaultValue="curl" className="gap-3">
+                <TabsList className="h-11 bg-transparent p-0">
+                    <TabsTrigger value="curl" className="h-11 px-4 font-bold">
+                        curl
+                    </TabsTrigger>
+                    <TabsTrigger value="json" className="h-11 px-4 font-bold">
+                        JSON
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value="curl">
+                    <CodeBlock code={curl} label="Ejemplo con curl" />
+                </TabsContent>
+                <TabsContent value="json">
+                    <CodeBlock code={exampleJson} label="Cuerpo JSON" />
+                </TabsContent>
+            </Tabs>
+
+            <details className="group rounded-lg border">
+                <summary className="flex min-h-11 cursor-pointer items-center justify-between px-4 text-sm font-bold">
+                    Todos los campos aceptados
+                    <ChevronRight
+                        className="size-4 transition-transform group-open:rotate-90"
+                        aria-hidden
                     />
-                    <CodeBlock label="Prueba con curl" code={curl} />
-                </section>
-            </CardContent>
-        </Card>
+                </summary>
+                <dl className="divide-y border-t text-sm">
+                    {FIELDS.map((field) => (
+                        <div
+                            key={field.name}
+                            className="grid gap-1 px-4 py-2 sm:grid-cols-[14rem_1fr]"
+                        >
+                            <dt className="font-mono text-xs leading-5">
+                                {field.name}
+                                {field.required && (
+                                    <span className="ml-1 text-destructive">
+                                        *
+                                        <span className="sr-only">
+                                            (obligatorio)
+                                        </span>
+                                    </span>
+                                )}
+                            </dt>
+                            <dd className="text-muted-foreground">
+                                {field.description}
+                            </dd>
+                        </div>
+                    ))}
+                </dl>
+            </details>
+        </SectionCard>
+    );
+}
+
+function Step({ number, children }: { number: number; children: ReactNode }) {
+    return (
+        <li className="flex gap-3">
+            <span
+                className="grid size-7 shrink-0 place-items-center rounded-md bg-secondary font-num text-xs"
+                aria-hidden
+            >
+                {number}
+            </span>
+            <span className="pt-0.5">{children}</span>
+        </li>
     );
 }
 
@@ -570,33 +620,34 @@ function NewTokenAlert({ token }: { token: string }) {
     const [copied, copy] = useClipboard();
 
     return (
-        <Alert className="border-yellow-400/60 bg-yellow-400/10">
-            <AlertTriangle />
-            <AlertTitle>Copia tu token ahora</AlertTitle>
-            <AlertDescription className="space-y-2">
-                <p>
-                    Por seguridad solo lo mostraremos esta vez. Si lo pierdes,
-                    revócalo y crea uno nuevo.
+        <div
+            className="overflow-hidden rounded-xl bg-primary text-primary-foreground"
+            role="status"
+        >
+            <div className="h-[5px] bg-hazard" aria-hidden />
+            <div className="flex flex-col gap-2 p-3">
+                <p className="font-bold">
+                    Copia tu token ahora. No volverás a verlo.
                 </p>
-                <div className="flex w-full items-center gap-2">
+                <div className="flex items-center gap-2 rounded-lg bg-background p-1.5 pl-3 text-foreground">
                     <Input
                         readOnly
                         value={token}
-                        className="font-mono text-xs"
+                        aria-label="Token nuevo"
+                        className="h-9 flex-1 border-0 bg-transparent px-0 font-mono text-sm shadow-none dark:bg-transparent"
                         onFocus={(event) => event.currentTarget.select()}
                     />
                     <Button
                         type="button"
-                        variant="outline"
-                        size="sm"
+                        className="h-11 rounded-lg font-bold"
                         onClick={() => copy(token)}
                     >
                         {copied === token ? <Check /> : <Copy />}
                         {copied === token ? 'Copiado' : 'Copiar'}
                     </Button>
                 </div>
-            </AlertDescription>
-        </Alert>
+            </div>
+        </div>
     );
 }
 
@@ -604,20 +655,21 @@ function CodeBlock({ label, code }: { label: string; code: string }) {
     const [copied, copy] = useClipboard();
 
     return (
-        <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{label}</span>
+        <div className="overflow-hidden rounded-xl bg-background">
+            <div className="flex items-center justify-between gap-2 border-b py-1 pr-1 pl-4">
+                <span className="text-xs text-muted-foreground">{label}</span>
                 <Button
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="h-9"
                     onClick={() => copy(code)}
                 >
                     {copied === code ? <Check /> : <Copy />}
                     {copied === code ? 'Copiado' : 'Copiar'}
                 </Button>
             </div>
-            <pre className="overflow-x-auto rounded-lg border bg-muted/50 p-4 font-mono text-xs leading-relaxed">
+            <pre className="p-4 font-mono text-xs leading-relaxed break-all whitespace-pre-wrap">
                 <code>{code}</code>
             </pre>
         </div>

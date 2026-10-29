@@ -1,7 +1,7 @@
 import { Head } from '@inertiajs/react';
 import type { HyroxSplit } from '@/components/activity-form';
+import { FormHeader } from '@/components/activities/form-header';
 import { ActivityForm } from '@/components/activity-form';
-import Heading from '@/components/heading';
 import activities from '@/routes/activities';
 import type { Option } from '@/types';
 
@@ -15,10 +15,10 @@ export default function ActivitiesCreate({
     return (
         <>
             <Head title="Registrar carrera" />
-            <div className="mx-auto w-full max-w-3xl p-4">
-                <Heading
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4 lg:p-6">
+                <FormHeader
                     title="Registrar carrera"
-                    description="Añade una carrera, un rodaje o una competición Hyrox."
+                    closeHref={activities.index.url()}
                 />
                 <ActivityForm types={types} hyroxSplits={hyroxSplits} />
             </div>
