@@ -323,6 +323,16 @@ class StatsService
     }
 
     /**
+     * The classic-distance record this activity holds, if any.
+     *
+     * @return array{label: string, distance_m: int, activity_id: int|null, duration_seconds: int|null, duration_label: string|null, pace_label: string|null, date: string|null}|null
+     */
+    public function runningRecordFor(Activity $activity): ?array
+    {
+        return collect($this->runningRecords($activity->user))->firstWhere('activity_id', $activity->id);
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public function recentWorkouts(User $user, int $limit = 5): array

@@ -15,6 +15,7 @@ use App\Models\WorkoutSession;
 use App\Services\OgImageGenerator;
 use App\Services\PersonalRecords;
 use App\Services\Progression\ProgressionSuggester;
+use App\Services\StatsService;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -86,12 +87,13 @@ class ShareController extends Controller
         ));
     }
 
-    public function activity(Request $request, string $token): Response
+    public function activity(Request $request, string $token, StatsService $stats): Response
     {
-        $activity = Activity::query()->where('share_token', $token)->with(['splits', 'user:id,name'])->firstOrFail();
+        $activity = Activity::query()->where('share_token', $token)->with(['splits', 'user'])->firstOrFail();
 
         return $this->renderShare('share/activity', [
             'activity' => ActivityResource::make($activity)->resolve($request),
+            'record' => $stats->runningRecordFor($activity),
             'author' => $activity->user->name,
         ], $activity->name, sprintf('%s km en %s (%s)', number_format($activity->distance_m / 1000, 2, ',', '.'), Activity::formatDuration($activity->duration_seconds), Activity::formatPace($activity->pace_seconds_per_km)), route('share.activity.image', $token));
     }

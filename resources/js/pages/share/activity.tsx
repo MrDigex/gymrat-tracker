@@ -3,15 +3,17 @@ import type { ReactNode } from 'react';
 import { PublicShareLayout } from '@/components/public-share-layout';
 import { formatDate, formatDuration, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { Activity } from '@/types';
+import type { Activity, RunningRecord } from '@/types';
 
 const RUNNING_TYPES = ['carrera', 'trail', 'cinta'];
 
 export default function ShareActivity({
     activity,
+    record,
     author,
 }: {
     activity: Activity;
+    record: RunningRecord | null;
     author: string;
 }) {
     const splits = activity.splits ?? [];
@@ -46,9 +48,15 @@ export default function ShareActivity({
                         </span>
                         <span className="ml-2 text-[34px]">km</span>
                     </p>
-                    <span className="mb-3 rounded-full bg-muted px-3 py-1 text-[13px] font-bold">
-                        {activity.name}
-                    </span>
+                    {record ? (
+                        <span className="mb-3 rounded-full bg-primary px-3 py-1 text-[13px] font-bold text-primary-foreground">
+                            ★ Récord personal · {record.label}
+                        </span>
+                    ) : (
+                        <span className="mb-3 rounded-full bg-muted px-3 py-1 text-[13px] font-bold">
+                            {activity.name}
+                        </span>
+                    )}
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2.5">

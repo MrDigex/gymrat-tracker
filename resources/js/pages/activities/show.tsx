@@ -37,9 +37,15 @@ import {
     formatPace,
 } from '@/lib/format';
 import activities from '@/routes/activities';
-import type { Activity } from '@/types';
+import type { Activity, RunningRecord } from '@/types';
 
-export default function ActivityShow({ activity }: { activity: Activity }) {
+export default function ActivityShow({
+    activity,
+    record,
+}: {
+    activity: Activity;
+    record: RunningRecord | null;
+}) {
     const splits = activity.splits ?? [];
     const isHyrox = activity.type === 'hyrox';
 
@@ -65,6 +71,11 @@ export default function ActivityShow({ activity }: { activity: Activity }) {
                         <div className="flex flex-wrap gap-1.5">
                             <TypeBadge activity={activity} />
                             <SourceBadge activity={activity} />
+                            {record && (
+                                <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">
+                                    ★ Récord {record.label}
+                                </span>
+                            )}
                         </div>
                         <h1 className="font-num text-[32px] leading-none break-words uppercase lg:text-4xl">
                             {activity.name}
@@ -73,7 +84,7 @@ export default function ActivityShow({ activity }: { activity: Activity }) {
                             {longDate(activity.started_at, true)}
                         </p>
                     </div>
-                    <Actions activity={activity} />
+                    <Actions activity={activity} record={record} />
                 </header>
 
                 {isHyrox ? (
@@ -98,7 +109,13 @@ export default function ActivityShow({ activity }: { activity: Activity }) {
     );
 }
 
-function Actions({ activity }: { activity: Activity }) {
+function Actions({
+    activity,
+    record,
+}: {
+    activity: Activity;
+    record: RunningRecord | null;
+}) {
     const iconButton = 'size-11 lg:w-auto lg:px-4';
 
     return (
@@ -122,6 +139,15 @@ function Actions({ activity }: { activity: Activity }) {
                         badge={activity.type_label}
                         title={activity.name}
                         date={formatDate(activity.started_at)}
+                        highlight={
+                            record
+                                ? {
+                                      label: 'Nuevo récord personal',
+                                      title: `${record.label} en ${record.duration_label}`,
+                                      detail: record.pace_label ?? undefined,
+                                  }
+                                : undefined
+                        }
                         stats={[
                             {
                                 label: 'Distancia',

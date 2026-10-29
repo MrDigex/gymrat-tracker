@@ -52,12 +52,13 @@ class ActivityController extends Controller
         return to_route('activities.show', $activity);
     }
 
-    public function show(Request $request, Activity $activity): Response
+    public function show(Request $request, Activity $activity, StatsService $stats): Response
     {
         $this->authorize('view', $activity);
 
         return Inertia::render('activities/show', [
             'activity' => ActivityResource::make($activity->load('splits'))->resolve($request),
+            'record' => $stats->runningRecordFor($activity),
         ]);
     }
 

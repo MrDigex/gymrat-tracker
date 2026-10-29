@@ -80,3 +80,18 @@ test('the races list includes splits and their count', function () {
             ->where('activities.data.0.splits_count', 3)
             ->has('activities.data.0.splits', 3));
 });
+
+test('a race that holds a classic-distance record is flagged on its pages', function () {
+    $best = Activity::factory()->for($this->user)->create(['distance_m' => 10000, 'duration_seconds' => 3000, 'moving_seconds' => null, 'share_token' => 'best-10k']);
+    $slower = Activity::factory()->for($this->user)->create(['distance_m' => 10000, 'duration_seconds' => 3300, 'moving_seconds' => null]);
+
+    $this->actingAs($this->user)->get(route('activities.show', $best))
+        ->assertInertia(fn (Assert $page) => $page->where('record.label', '10K')->where('record.duration_label', '50:00'));
+    $this->actingAs($this->user)->get(route('activities.show', $slower))
+        ->assertInertia(fn (Assert $page) => $page->where('record', null));
+
+    auth()->logout();
+
+    $this->get(route('share.activity', 'best-10k'))
+        ->assertInertia(fn (Assert $page) => $page->where('record.label', '10K'));
+});
