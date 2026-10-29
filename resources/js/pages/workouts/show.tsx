@@ -5,12 +5,9 @@ import {
     Clock,
     Flag,
     ListChecks,
-    Minus,
-    Pencil,
     Plus,
     StickyNote,
     Target,
-    Timer,
     Trash2,
     Trophy,
     Weight,
@@ -21,9 +18,17 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ExerciseImage } from '@/components/exercise-image';
 import { ExercisePicker } from '@/components/exercise-picker';
+import { NumberStepper } from '@/components/gymrat/number-stepper';
+import { RestTimer } from '@/components/gymrat/rest-timer';
+import {
+    RpePicker,
+    SetRow,
+    TargetMetBanner,
+    WarmupToggle,
+} from '@/components/gymrat/set-logger';
 import InputError from '@/components/input-error';
 import { ShareDialog, StoryCard } from '@/components/share-dialog';
-import { SuggestionCallout } from '@/components/suggestion-badge';
+import { SuggestionCallout } from '@/components/gymrat/suggestion-callout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,9 +48,6 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
     formatDate,
@@ -97,7 +99,7 @@ export default function WorkoutShow({
     entries: WorkoutEntry[];
 }) {
     const [extraEntries, setExtraEntries] = useState<Entry[]>([]);
-    const [rest, setRest] = useState<{ endsAt: number; total: number } | null>(
+    const [rest, setRest] = useState<{ key: number; seconds: number } | null>(
         null,
     );
     const suggestionHttp = useHttp<{ exclude_session: number }, Suggestion>({
@@ -143,7 +145,7 @@ export default function WorkoutShow({
         );
 
     const startRest = (seconds: number) =>
-        setRest({ endsAt: Date.now() + seconds * 1000, total: seconds });
+        setRest({ key: Date.now(), seconds });
 
     return (
         <>
@@ -211,16 +213,9 @@ export default function WorkoutShow({
 
             {rest && (
                 <RestTimer
-                    key={rest.endsAt}
-                    endsAt={rest.endsAt}
-                    total={rest.total}
-                    onExtend={(seconds) =>
-                        setRest({
-                            endsAt: rest.endsAt + seconds * 1000,
-                            total: rest.total + seconds,
-                        })
-                    }
-                    onClose={() => setRest(null)}
+                    key={rest.key}
+                    seconds={rest.seconds}
+                    onSkip={() => setRest(null)}
                 />
             )}
         </>
@@ -277,10 +272,10 @@ function WorkoutHeader({
         <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h1 className="truncate text-2xl font-bold tracking-tight">
+                    <h1 className="truncate font-num text-3xl uppercase">
                         {session.name}
                     </h1>
-                    <p className="text-sm text-muted-foreground capitalize">
+                    <p className="text-sm text-muted-foreground first-letter:uppercase">
                         {formatDate(session.started_at, {
                             weekday: 'long',
                             day: 'numeric',
@@ -296,9 +291,8 @@ function WorkoutHeader({
             <div className="flex flex-wrap items-center gap-3">
                 <div
                     className={cn(
-                        'inline-flex items-center gap-2 rounded-lg border px-3 py-2 font-mono text-lg font-semibold tabular-nums',
-                        !finished &&
-                            'border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+                        'inline-flex items-center gap-2 rounded-lg border px-3 py-2 font-num text-xl',
+                        !finished && 'border-primary/50 text-primary-text',
                     )}
                 >
                     <Clock className="size-5" />
@@ -646,54 +640,27 @@ function ExerciseCard({
                 )}
 
                 {sets.length > 0 && (
-                    <ul className="divide-y rounded-lg border">
-                        {sets.map((set, index) => {
-                            const hit = meetsTarget(
-                                set,
-                                suggestion,
-                                exercise.tracking_type,
-                            );
-
-                            return (
-                                <li key={set.id}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditing(set)}
-                                        className={cn(
-                                            'flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-accent/50',
-                                            hit && 'bg-emerald-500/10',
-                                        )}
-                                    >
-                                        <span
-                                            className={cn(
-                                                'flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
-                                                set.is_warmup
-                                                    ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                                                    : 'bg-muted',
-                                            )}
-                                        >
-                                            {set.is_warmup ? 'C' : index + 1}
-                                        </span>
-                                        <span className="flex-1 font-medium tabular-nums">
-                                            {formatSet(
-                                                set,
-                                                exercise.tracking_type,
-                                            )}
-                                            {set.rpe !== null && (
-                                                <span className="ml-2 text-xs text-muted-foreground">
-                                                    RPE {set.rpe}
-                                                </span>
-                                            )}
-                                        </span>
-                                        {hit && (
-                                            <Check className="size-4 text-emerald-600" />
-                                        )}
-                                        <Pencil className="size-4 text-muted-foreground" />
-                                    </button>
-                                </li>
-                            );
-                        })}
-                    </ul>
+                    <div className="flex flex-col gap-1.5">
+                        {sets.map((set) => (
+                            <SetRow
+                                key={set.id}
+                                index={
+                                    workingSets.findIndex(
+                                        (working) => working.id === set.id,
+                                    ) + 1
+                                }
+                                summary={formatSet(set, exercise.tracking_type)}
+                                rpe={set.rpe}
+                                warmup={set.is_warmup}
+                                targetMet={meetsTarget(
+                                    set,
+                                    suggestion,
+                                    exercise.tracking_type,
+                                )}
+                                onEdit={() => setEditing(set)}
+                            />
+                        ))}
+                    </div>
                 )}
 
                 {showForm ? (
@@ -703,6 +670,7 @@ function ExerciseCard({
                         exercise={exercise}
                         suggestion={suggestion}
                         target={target}
+                        nextSetNumber={workingSets.length + 1}
                         onLogged={onLogged}
                     />
                 ) : (
@@ -749,18 +717,25 @@ function AddSetForm({
     exercise,
     suggestion,
     target,
+    nextSetNumber,
     onLogged,
 }: {
     session: WorkoutSession;
     exercise: Exercise;
     suggestion: Suggestion | null;
     target: RoutineExercise | null;
+    nextSetNumber: number;
     onLogged: () => void;
 }) {
     const form = useForm<SetFormData>(
         defaultsFromSuggestion(suggestion, target),
     );
+    const [celebrate, setCelebrate] = useState(false);
     const trackingType = exercise.tracking_type;
+    const setData = <K extends keyof SetFormData>(
+        key: K,
+        value: SetFormData[K],
+    ) => form.setData((current) => ({ ...current, [key]: value }));
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -771,10 +746,13 @@ function AddSetForm({
         form.post(workouts.sets.store.url(session.id), {
             preserveScroll: true,
             onSuccess: () => {
+                setData('rpe', '');
+                setData('is_warmup', false);
+
                 if (meetsTarget(payload, suggestion, trackingType)) {
-                    toast.success('¡Objetivo cumplido!', {
-                        description: 'Has alcanzado la sugerencia de hoy.',
-                    });
+                    setCelebrate(true);
+                    navigator.vibrate?.(30);
+                    window.setTimeout(() => setCelebrate(false), 2200);
                 }
 
                 onLogged();
@@ -782,41 +760,43 @@ function AddSetForm({
         });
     };
 
-    const hit = meetsTarget(
-        toPayload(form.data, trackingType),
-        suggestion,
-        trackingType,
-    );
+    const warmup = form.data.is_warmup;
 
     return (
         <form
             onSubmit={submit}
-            className="space-y-3 rounded-lg bg-muted/40 p-3"
+            aria-label={`Registrar serie ${nextSetNumber}`}
+            className="flex flex-col gap-3 rounded-xl border border-input bg-card p-3.5"
         >
+            <div className="flex items-center justify-between">
+                <h3 className="font-num text-lg uppercase">
+                    {warmup ? 'Calentamiento' : `Serie ${nextSetNumber}`}
+                </h3>
+                <WarmupToggle
+                    pressed={warmup}
+                    onToggle={() => setData('is_warmup', !warmup)}
+                />
+            </div>
+
             <SetFields
                 trackingType={trackingType}
                 data={form.data}
                 errors={form.errors}
-                onChange={(key, value) =>
-                    form.setData((current) => ({ ...current, [key]: value }))
-                }
+                onChange={setData}
                 idPrefix={`add-${exercise.id}`}
             />
-            <Button
-                type="submit"
-                size="lg"
-                className={cn(
-                    'h-12 w-full text-base',
-                    hit && 'bg-emerald-600 hover:bg-emerald-600/90',
-                )}
-                disabled={form.processing}
-            >
-                {hit ? <Trophy /> : <Check />}
-                {form.data.is_warmup
-                    ? 'Guardar calentamiento'
-                    : hit
-                      ? 'Guardar serie · ¡Objetivo cumplido!'
-                      : 'Guardar serie'}
+
+            <RpePicker
+                value={parseInteger(form.data.rpe)}
+                onChange={(value) => setData('rpe', value?.toString() ?? '')}
+            />
+            <InputError message={form.errors.rpe} />
+
+            <div aria-live="polite">{celebrate && <TargetMetBanner />}</div>
+
+            <Button type="submit" size="workout" disabled={form.processing}>
+                <Check strokeWidth={3} />
+                Guardar {warmup ? 'calentamiento' : `serie ${nextSetNumber}`}
             </Button>
         </form>
     );
@@ -845,6 +825,10 @@ function EditSetForm({
     });
     const [deleting, setDeleting] = useState(false);
     const route = { workout: session.id, set: set.id };
+    const setData = <K extends keyof SetFormData>(
+        key: K,
+        value: SetFormData[K],
+    ) => form.setData((current) => ({ ...current, [key]: value }));
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -864,16 +848,25 @@ function EditSetForm({
         });
 
     return (
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="flex flex-col gap-4">
+            <div className="flex justify-end">
+                <WarmupToggle
+                    pressed={form.data.is_warmup}
+                    onToggle={() => setData('is_warmup', !form.data.is_warmup)}
+                />
+            </div>
             <SetFields
                 trackingType={trackingType}
                 data={form.data}
                 errors={form.errors}
-                onChange={(key, value) =>
-                    form.setData((current) => ({ ...current, [key]: value }))
-                }
+                onChange={setData}
                 idPrefix={`edit-${set.id}`}
             />
+            <RpePicker
+                value={parseInteger(form.data.rpe)}
+                onChange={(value) => setData('rpe', value?.toString() ?? '')}
+            />
+            <InputError message={form.errors.rpe} />
             <DialogFooter className="gap-2">
                 <Button
                     type="button"
@@ -891,6 +884,9 @@ function EditSetForm({
     );
 }
 
+/**
+ * Value inputs for a set; which ones depend on how the exercise is tracked.
+ */
 function SetFields({
     trackingType,
     data,
@@ -907,241 +903,66 @@ function SetFields({
     ) => void;
     idPrefix: string;
 }) {
-    return (
-        <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-                {trackingType === 'weight_reps' && (
-                    <StepperField
-                        id={`${idPrefix}-weight`}
-                        label="Peso (kg)"
-                        value={data.weight_kg}
-                        step={2.5}
-                        inputMode="decimal"
-                        error={errors.weight_kg}
-                        onChange={(value) => onChange('weight_kg', value)}
-                    />
-                )}
-                {(trackingType === 'weight_reps' ||
-                    trackingType === 'reps') && (
-                    <StepperField
-                        id={`${idPrefix}-reps`}
-                        label="Repeticiones"
-                        value={data.reps}
-                        step={1}
-                        inputMode="numeric"
-                        error={errors.reps}
-                        onChange={(value) => onChange('reps', value)}
-                    />
-                )}
-                {trackingType === 'distance_time' && (
-                    <StepperField
-                        id={`${idPrefix}-distance`}
-                        label="Distancia (m)"
-                        value={data.distance_m}
-                        step={50}
-                        inputMode="numeric"
-                        error={errors.distance_m}
-                        onChange={(value) => onChange('distance_m', value)}
-                    />
-                )}
-                {(trackingType === 'time' ||
-                    trackingType === 'distance_time') && (
-                    <div className="grid gap-1.5">
-                        <Label htmlFor={`${idPrefix}-duration`}>
-                            Tiempo (mm:ss)
-                        </Label>
-                        <Input
-                            id={`${idPrefix}-duration`}
-                            value={data.duration_seconds}
-                            inputMode="numeric"
-                            placeholder="1:30"
-                            className="h-12 text-center text-lg font-semibold tabular-nums"
-                            onChange={(event) =>
-                                onChange('duration_seconds', event.target.value)
-                            }
-                        />
-                        <InputError message={errors.duration_seconds} />
-                    </div>
-                )}
-            </div>
-            <div className="flex items-center justify-between gap-3">
-                <label
-                    htmlFor={`${idPrefix}-warmup`}
-                    className="flex min-h-10 items-center gap-2 text-sm"
-                >
-                    <Switch
-                        id={`${idPrefix}-warmup`}
-                        checked={data.is_warmup}
-                        onCheckedChange={(checked) =>
-                            onChange('is_warmup', checked)
-                        }
-                    />
-                    Calentamiento
-                </label>
-                <div className="flex items-center gap-2">
-                    <Label
-                        htmlFor={`${idPrefix}-rpe`}
-                        className="text-sm text-muted-foreground"
-                    >
-                        RPE
-                    </Label>
-                    <Input
-                        id={`${idPrefix}-rpe`}
-                        value={data.rpe}
-                        inputMode="numeric"
-                        placeholder="—"
-                        maxLength={2}
-                        className="h-10 w-14 text-center"
-                        onChange={(event) =>
-                            onChange(
-                                'rpe',
-                                event.target.value.replace(/\D/g, ''),
-                            )
-                        }
-                    />
-                </div>
-            </div>
-            <InputError message={errors.rpe} />
+    const stepper = (
+        key: 'weight_kg' | 'reps' | 'distance_m',
+        label: string,
+        options: { step: number; max: number; unit?: string },
+    ) => (
+        <div>
+            <NumberStepper
+                label={label}
+                unit={options.unit}
+                step={options.step}
+                max={options.max}
+                value={parseNumber(data[key]) ?? 0}
+                onChange={(value) => onChange(key, value.toString())}
+            />
+            <InputError message={errors[key]} className="mt-1" />
         </div>
     );
-}
-
-function StepperField({
-    id,
-    label,
-    value,
-    step,
-    inputMode,
-    error,
-    onChange,
-}: {
-    id: string;
-    label: string;
-    value: string;
-    step: number;
-    inputMode: 'decimal' | 'numeric';
-    error?: string;
-    onChange: (value: string) => void;
-}) {
-    const adjust = (delta: number) => {
-        const current = parseNumber(value) ?? 0;
-        const next = Math.max(0, Math.round((current + delta) * 100) / 100);
-
-        onChange(next.toString());
-    };
 
     return (
-        <div className="grid gap-1.5">
-            <Label htmlFor={id}>{label}</Label>
-            <div className="flex items-center gap-1">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-12 shrink-0"
-                    aria-label={`Restar ${label}`}
-                    onClick={() => adjust(-step)}
-                >
-                    <Minus />
-                </Button>
-                <Input
-                    id={id}
-                    value={value}
-                    inputMode={inputMode}
-                    className="h-12 min-w-0 text-center text-lg font-semibold tabular-nums"
-                    onChange={(event) => onChange(event.target.value)}
-                />
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-12 shrink-0"
-                    aria-label={`Sumar ${label}`}
-                    onClick={() => adjust(step)}
-                >
-                    <Plus />
-                </Button>
-            </div>
-            <InputError message={error} />
-        </div>
-    );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Rest timer                                                                 */
-/* -------------------------------------------------------------------------- */
-
-function RestTimer({
-    endsAt,
-    total,
-    onExtend,
-    onClose,
-}: {
-    endsAt: number;
-    total: number;
-    onExtend: (seconds: number) => void;
-    onClose: () => void;
-}) {
-    const now = useNow(true, 250);
-    const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
-    const done = remaining === 0;
-
-    useEffect(() => {
-        const timeout = window.setTimeout(
-            () => navigator.vibrate?.([200, 100, 200]),
-            Math.max(0, endsAt - Date.now()),
-        );
-
-        return () => window.clearTimeout(timeout);
-    }, [endsAt]);
-
-    return (
-        <div className="fixed inset-x-0 bottom-0 z-40 p-3 sm:bottom-4 sm:left-auto sm:w-96">
-            <div
-                className={cn(
-                    'overflow-hidden rounded-xl border bg-background shadow-lg',
-                    done && 'border-emerald-500',
-                )}
-            >
+        <div className="grid gap-2.5 sm:grid-cols-2">
+            {trackingType === 'weight_reps' &&
+                stepper('weight_kg', 'Peso', {
+                    step: 2.5,
+                    max: 1000,
+                    unit: 'kg',
+                })}
+            {(trackingType === 'weight_reps' || trackingType === 'reps') &&
+                stepper('reps', 'Repeticiones', { step: 1, max: 1000 })}
+            {trackingType === 'distance_time' &&
+                stepper('distance_m', 'Distancia', {
+                    step: 50,
+                    max: 100000,
+                    unit: 'm',
+                })}
+            {(trackingType === 'time' || trackingType === 'distance_time') && (
                 <div
-                    className="h-1 bg-primary transition-[width] duration-300"
-                    style={{
-                        width: `${total > 0 ? (remaining / total) * 100 : 0}%`,
-                    }}
-                />
-                <div className="flex items-center gap-3 p-3">
-                    <Timer
-                        className={cn(
-                            'size-6 shrink-0',
-                            done ? 'text-emerald-600' : 'text-muted-foreground',
-                        )}
-                    />
-                    <div className="flex-1">
-                        <div className="text-xs text-muted-foreground">
-                            {done ? '¡A por la siguiente serie!' : 'Descanso'}
-                        </div>
-                        <div className="font-mono text-2xl font-bold tabular-nums">
-                            {formatDuration(remaining)}
-                        </div>
-                    </div>
-                    {!done && (
-                        <Button
-                            variant="outline"
-                            className="h-11"
-                            onClick={() => onExtend(15)}
-                        >
-                            +15 s
-                        </Button>
+                    className={cn(
+                        'flex flex-col gap-1.5',
+                        trackingType === 'time' && 'sm:col-span-2',
                     )}
-                    <Button
-                        variant={done ? 'default' : 'ghost'}
-                        className="h-11"
-                        onClick={onClose}
+                >
+                    <label
+                        htmlFor={`${idPrefix}-duration`}
+                        className="text-xs font-semibold text-muted-foreground"
                     >
-                        {done ? 'Listo' : 'Saltar'}
-                    </Button>
+                        Tiempo (mm:ss)
+                    </label>
+                    <input
+                        id={`${idPrefix}-duration`}
+                        value={data.duration_seconds}
+                        inputMode="numeric"
+                        placeholder="1:30"
+                        className="h-16 w-full rounded-lg border border-input bg-transparent text-center font-num text-[28px] outline-none focus-visible:border-ring"
+                        onChange={(event) =>
+                            onChange('duration_seconds', event.target.value)
+                        }
+                    />
+                    <InputError message={errors.duration_seconds} />
                 </div>
-            </div>
+            )}
         </div>
     );
 }

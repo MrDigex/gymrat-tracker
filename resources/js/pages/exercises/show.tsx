@@ -3,7 +3,7 @@ import { LineChart as LineChartIcon, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import { ExerciseImage } from '@/components/exercise-image';
-import { SuggestionCallout } from '@/components/suggestion-badge';
+import { SuggestionCallout } from '@/components/gymrat/suggestion-callout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

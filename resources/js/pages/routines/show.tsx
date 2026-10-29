@@ -21,7 +21,7 @@ import { ExerciseImage } from '@/components/exercise-image';
 import { ExercisePicker, fetchJson } from '@/components/exercise-picker';
 import InputError from '@/components/input-error';
 import { ShareDialog, StoryCard } from '@/components/share-dialog';
-import { SuggestionCallout } from '@/components/suggestion-badge';
+import { SuggestionCallout } from '@/components/gymrat/suggestion-callout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

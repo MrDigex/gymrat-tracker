@@ -25,6 +25,7 @@ const buttonVariants = cva(
         sm: "h-8 rounded-md px-3 has-[>svg]:px-2.5",
         lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
         icon: "size-9",
+        workout: "h-[60px] rounded-[16px] px-6 font-num text-[19px] uppercase [&_svg:not([class*='size-'])]:size-[22px]",
       },
     },
     defaultVariants: {
