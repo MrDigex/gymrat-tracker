@@ -1,5 +1,6 @@
-import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+import { Deferred, Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowRight, Dumbbell, Flame, Footprints, Play } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
     FirstWeekChecklist,
@@ -14,23 +15,29 @@ import {
     MuscleBars,
     Panel,
     RecordList,
+    type RecordRow,
     strengthRecordRows,
     WeeklyVolumeChart,
 } from '@/components/stats-charts';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Spinner } from '@/components/ui/spinner';
 import { useTrainHref } from '@/hooks/use-train-href';
 import { BODY_ZONES } from '@/lib/chart-colors';
 import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
-import { create as createActivity } from '@/routes/activities';
+import {
+    create as createActivity,
+    show as showActivity,
+} from '@/routes/activities';
 import { index as statsIndex } from '@/routes/stats';
-import { show as showWorkout } from '@/routes/workouts';
+import workouts, { show as showWorkout } from '@/routes/workouts';
 import type {
     MuscleDistribution,
     Onboarding,
     PersonalRecord,
+    RunningRecord,
     WeeklyRunning,
     WeeklyVolume,
 } from '@/types';
@@ -50,6 +57,7 @@ type RecentWorkout = {
     name: string;
     started_at: string;
     sets: number;
+    duration_minutes: number | null;
     volume_kg: number;
 };
 
@@ -61,6 +69,9 @@ type DashboardProps = {
     muscleDistribution?: MuscleDistribution[];
     weeklyRunning?: WeeklyRunning[];
     personalRecords?: PersonalRecord[];
+    runningRecords?: RunningRecord[];
+    activeDays: string[];
+    nextRoutine: { id: number; name: string; exercises_count: number } | null;
     recentWorkouts: RecentWorkout[];
     routinesCount: number;
     onboarding: Onboarding;
@@ -92,10 +103,6 @@ function shortDay(value: string): string {
         .replace('.', '');
 
     return `${capitalize(weekday)} ${date.getDate()} ${month}`;
-}
-
-function isSameDay(a: Date, b: Date): boolean {
-    return a.toDateString() === b.toDateString();
 }
 
 const kg = (value: number) => formatThousands(Math.round(value));
@@ -144,6 +151,9 @@ export default function Dashboard({
     muscleDistribution,
     weeklyRunning,
     personalRecords,
+    runningRecords,
+    activeDays,
+    nextRoutine,
     recentWorkouts,
     routinesCount,
     onboarding,
@@ -159,14 +169,52 @@ export default function Dashboard({
         kpis.km_last_month === 0;
     const showChecklist = !onboarding.has_routine || !onboarding.has_workout;
 
+    const [starting, setStarting] = useState(false);
+    const startRoutine =
+        !activeWorkoutId && nextRoutine
+            ? () => {
+                  setStarting(true);
+                  router.post(
+                      workouts.store.url(),
+                      { routine_id: nextRoutine.id },
+                      { onFinish: () => setStarting(false) },
+                  );
+              }
+            : null;
     const startLabel = activeWorkoutId
         ? 'Continuar entrenamiento'
         : 'Empezar entrenamiento';
+    const startLabelDesktop =
+        startRoutine && nextRoutine
+            ? `Empezar ${nextRoutine.name}`
+            : startLabel;
     const startHint = activeWorkoutId
         ? 'Tienes un entrenamiento en curso'
-        : routinesCount > 0
-          ? `Elige una de tus ${routinesCount} ${routinesCount === 1 ? 'rutina' : 'rutinas'} o entrena libre`
-          : 'Entrenamiento libre';
+        : nextRoutine
+          ? `Siguiente: ${nextRoutine.name} · ${nextRoutine.exercises_count} ${nextRoutine.exercises_count === 1 ? 'ejercicio' : 'ejercicios'}`
+          : routinesCount > 0
+            ? `Elige una de tus ${routinesCount} ${routinesCount === 1 ? 'rutina' : 'rutinas'} o entrena libre`
+            : 'Entrenamiento libre';
+
+    /**
+     * The main action: POSTs the next routine, or links to the workout in
+     * progress / the new workout dialog.
+     */
+    const startAction = (className: string, children: ReactNode) =>
+        startRoutine ? (
+            <button
+                type="button"
+                onClick={startRoutine}
+                disabled={starting}
+                className={cn(className, 'disabled:opacity-70')}
+            >
+                {children}
+            </button>
+        ) : (
+            <Link href={trainHref} className={className}>
+                {children}
+            </Link>
+        );
 
     const header = (
         <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -214,15 +262,22 @@ export default function Dashboard({
                             Registrar carrera
                         </Link>
                     </Button>
-                    <Button
-                        asChild
-                        className="h-12 rounded-lg px-5 text-[15px] font-bold"
-                    >
-                        <Link href={trainHref}>
-                            <Play className="fill-current" aria-hidden />
-                            {startLabel}
-                        </Link>
-                    </Button>
+                    {startAction(
+                        cn(
+                            buttonVariants(),
+                            'h-12 max-w-80 rounded-lg px-5 text-[15px] font-bold',
+                        ),
+                        <>
+                            {starting ? (
+                                <Spinner />
+                            ) : (
+                                <Play className="fill-current" aria-hidden />
+                            )}
+                            <span className="truncate">
+                                {startLabelDesktop}
+                            </span>
+                        </>,
+                    )}
                 </div>
             )}
         </header>
@@ -272,6 +327,23 @@ export default function Dashboard({
         );
     }
 
+    const recordRows: RecordRow[] = [
+        ...strengthRecordRows(personalRecords ?? [], { withDetail: false }),
+        ...(runningRecords ?? [])
+            .filter((record) => record.duration_label && record.date)
+            .map((record) => ({
+                key: `run-${record.label}`,
+                title: record.label,
+                href: record.activity_id
+                    ? showActivity.url(record.activity_id)
+                    : undefined,
+                date: record.date,
+                value: record.duration_label ?? '',
+                highlight: true,
+            })),
+    ]
+        .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+        .slice(0, 8);
     const volumeSpark = weeklyVolume?.map((week) =>
         BODY_ZONES.reduce((sum, zone) => sum + week[zone], 0),
     );
@@ -323,43 +395,36 @@ export default function Dashboard({
                                     <p className="text-[15px] font-bold">
                                         ¡No la rompas hoy!
                                     </p>
-                                    <StreakWeek
-                                        streak={kpis.streak_days}
-                                        trainedToday={recentWorkouts.some(
-                                            (workout) =>
-                                                isSameDay(
-                                                    new Date(
-                                                        workout.started_at,
-                                                    ),
-                                                    now,
-                                                ),
-                                        )}
-                                    />
+                                    <StreakWeek activeDays={activeDays} />
                                 </div>
                             )
                         }
                     />
 
                     <div className="col-span-2 flex flex-col gap-3 md:hidden">
-                        <Link
-                            href={trainHref}
-                            className="flex min-h-[72px] items-center gap-3 rounded-xl bg-primary py-3 pr-3 pl-5 text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
-                        >
-                            <span className="min-w-0 flex-1">
-                                <span className="block font-num text-xl leading-tight uppercase">
-                                    {startLabel}
+                        {startAction(
+                            'flex min-h-[72px] w-full items-center gap-3 rounded-xl bg-primary py-3 pr-3 pl-5 text-left text-primary-foreground shadow-xs transition-colors hover:bg-primary/90',
+                            <>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block font-num text-xl leading-tight uppercase">
+                                        {startLabel}
+                                    </span>
+                                    <span className="block truncate text-[13px] font-bold">
+                                        {startHint}
+                                    </span>
                                 </span>
-                                <span className="block truncate text-[13px] font-bold">
-                                    {startHint}
+                                <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-primary-foreground text-primary">
+                                    {starting ? (
+                                        <Spinner />
+                                    ) : (
+                                        <Play
+                                            className="size-5 fill-current"
+                                            aria-hidden
+                                        />
+                                    )}
                                 </span>
-                            </span>
-                            <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-primary-foreground text-primary">
-                                <Play
-                                    className="size-5 fill-current"
-                                    aria-hidden
-                                />
-                            </span>
-                        </Link>
+                            </>,
+                        )}
                         <Button
                             asChild
                             variant="outline"
@@ -502,15 +567,11 @@ export default function Dashboard({
                         className="gap-1"
                     >
                         <Deferred
-                            data="personalRecords"
+                            data={['personalRecords', 'runningRecords']}
                             fallback={<RowsSkeleton rows={5} height="h-10" />}
                         >
-                            {personalRecords && personalRecords.length > 0 ? (
-                                <RecordList
-                                    rows={strengthRecordRows(personalRecords, {
-                                        withDetail: false,
-                                    })}
-                                />
+                            {recordRows.length > 0 ? (
+                                <RecordList rows={recordRows} />
                             ) : (
                                 <ChartEmpty className="min-h-32">
                                     Tus récords aparecerán cuando registres
@@ -525,29 +586,19 @@ export default function Dashboard({
     );
 }
 
+const dayKey = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
 /**
- * Monday-to-Sunday strip with the streak days filled in. The streak ends today
- * when there is a workout today, otherwise yesterday (same rule as the backend).
+ * Monday-to-Sunday strip of the current week, with the days that had a
+ * workout or a run filled in.
  */
-function StreakWeek({
-    streak,
-    trainedToday,
-}: {
-    streak: number;
-    trainedToday: boolean;
-}) {
+function StreakWeek({ activeDays }: { activeDays: string[] }) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const monday = new Date(today);
     monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-    const end = new Date(today);
-
-    if (!trainedToday) {
-        end.setDate(end.getDate() - 1);
-    }
-
-    const start = new Date(end);
-    start.setDate(end.getDate() - streak + 1);
+    const trained = new Set(activeDays);
     const labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
     const names = [
         'lunes',
@@ -565,7 +616,7 @@ function StreakWeek({
         return {
             label,
             name: names[index],
-            active: day >= start && day <= end,
+            active: trained.has(dayKey(day)),
             today: day.getTime() === today.getTime(),
         };
     });
@@ -669,6 +720,7 @@ function RecentWorkouts({
                     <tr className="border-b text-left text-[13px] text-muted-foreground">
                         <th className="pb-2 font-medium">Fecha</th>
                         <th className="pb-2 font-medium">Rutina</th>
+                        <th className="pb-2 text-right font-medium">Min</th>
                         <th className="pb-2 text-right font-medium">Series</th>
                         <th className="pb-2 text-right font-medium">Volumen</th>
                     </tr>
@@ -689,6 +741,16 @@ function RecentWorkouts({
                                 >
                                     {workout.name}
                                 </Link>
+                            </td>
+                            <td className="py-3.5 text-right font-num">
+                                {workout.duration_minutes ?? (
+                                    <>
+                                        <span aria-hidden>—</span>
+                                        <span className="sr-only">
+                                            en curso
+                                        </span>
+                                    </>
+                                )}
                             </td>
                             <td className="py-3.5 text-right font-num">
                                 {workout.sets}

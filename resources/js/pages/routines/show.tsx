@@ -144,6 +144,12 @@ function toPayload(data: TargetData, trackingType: TrackingType) {
     };
 }
 
+function monthShort(value: string): string {
+    return new Intl.DateTimeFormat('es-ES', { month: 'short' })
+        .format(new Date(value))
+        .replace('.', '');
+}
+
 function sessionDay(value: string): string {
     const date = new Date(value);
     const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'short' })
@@ -166,6 +172,11 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
     const [starting, setStarting] = useState(false);
     const [highlightId, setHighlightId] = useState<number | null>(null);
     const summary = routineSummary(routine, items.length);
+    const totalSets = items.reduce((sum, item) => sum + item.target_sets, 0);
+    const lastDone =
+        routine.last_performed_at ??
+        recentSessions.find((session) => session.finished_at)?.started_at ??
+        null;
 
     const start = () => {
         setStarting(true);
@@ -204,35 +215,79 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
                 <StoryCard
                     badge="Rutina"
                     title={routine.name}
-                    subtitle={summary}
+                    stats={[
+                        {
+                            label: 'Ejercicios',
+                            value: items.length,
+                        },
+                        ...(routine.estimated_minutes
+                            ? [
+                                  {
+                                      label: 'Duración aprox.',
+                                      value: routine.estimated_minutes,
+                                      unit: 'min',
+                                  },
+                              ]
+                            : []),
+                    ]}
+                    tiles={[
+                        {
+                            label: 'Series',
+                            value: routine.total_sets ?? totalSets,
+                        },
+                        {
+                            label: 'Minutos',
+                            value: routine.estimated_minutes
+                                ? `~${routine.estimated_minutes}`
+                                : '—',
+                        },
+                        {
+                            label: 'Última vez',
+                            value: lastDone
+                                ? new Date(lastDone).getDate()
+                                : '—',
+                            unit: lastDone
+                                ? ` ${monthShort(lastDone)}`
+                                : undefined,
+                        },
+                    ]}
                 >
-                    {items.slice(0, 10).map((item, index) => (
+                    {items.length > 0 && (
                         <div
-                            key={item.id}
                             style={{
                                 display: 'flex',
-                                justifyContent: 'space-between',
-                                gap: 24,
-                                borderBottom: '2px solid #3f3f46',
-                                paddingBottom: 20,
+                                flexDirection: 'column',
+                                gap: 14,
+                                maxWidth: 440,
+                                fontSize: 34,
+                                fontWeight: 700,
                             }}
                         >
-                            <span style={{ fontWeight: 700 }}>
-                                {index + 1}. {item.exercise.name}
-                            </span>
-                            <span
-                                style={{
-                                    color: '#facc15',
-                                    whiteSpace: 'nowrap',
-                                }}
-                            >
-                                {formatTarget(item)}
-                            </span>
-                        </div>
-                    ))}
-                    {items.length > 10 && (
-                        <div style={{ color: '#a1a1aa' }}>
-                            y {items.length - 10} más…
+                            {items.slice(0, 4).map((item, index) => (
+                                <div
+                                    key={item.id}
+                                    style={{
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    <span style={{ color: '#facc15' }}>
+                                        {index + 1}
+                                    </span>{' '}
+                                    {item.exercise.name}
+                                </div>
+                            ))}
+                            {items.length > 4 && (
+                                <div
+                                    style={{
+                                        color: '#a1a1aa',
+                                        fontWeight: 400,
+                                    }}
+                                >
+                                    y {items.length - 4} más
+                                </div>
+                            )}
                         </div>
                     )}
                 </StoryCard>
