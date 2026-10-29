@@ -89,6 +89,10 @@ export type Routine = {
     is_public: boolean;
     share_url: string | null;
     exercises_count?: number;
+    total_sets?: number;
+    /** Rough session length in minutes (0 when the routine is empty). */
+    estimated_minutes?: number;
+    last_performed_at?: string | null;
     exercises?: RoutineExercise[];
     updated_at: string | null;
 };
@@ -227,4 +231,25 @@ export type Paginated<T> = {
     next_page_url: string | null;
     prev_page_url: string | null;
     links: { url: string | null; label: string; active: boolean }[];
+};
+
+/**
+ * A personal record beaten in a workout (see App\Services\PersonalRecords).
+ */
+export type SessionRecord = {
+    exercise_id: number;
+    exercise: string;
+    set_id: number;
+    type: 'one_rep_max' | 'weight' | 'reps' | 'duration' | 'pace';
+    label: string;
+    /** kg for one_rep_max/weight, reps, seconds, or seconds per km for pace. */
+    value: number;
+    previous: number;
+    summary: string;
+};
+
+export type Onboarding = {
+    has_routine: boolean;
+    has_workout: boolean;
+    has_integration: boolean;
 };
