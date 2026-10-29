@@ -154,14 +154,14 @@ export function ExercisePicker({
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>{trigger}</DialogTrigger>
             <DialogContent className="flex max-h-[90dvh] flex-col gap-3 p-4 sm:max-w-lg sm:p-6">
-                <DialogHeader>
+                <DialogHeader className="shrink-0">
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>
                         Busca por nombre o filtra por categoría y zona.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="relative">
+                <div className="relative shrink-0">
                     <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                         autoFocus
@@ -172,7 +172,7 @@ export function ExercisePicker({
                     />
                 </div>
 
-                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                <div className="flex shrink-0 flex-wrap gap-1.5">
                     {CATEGORY_FILTERS.map((filter) => (
                         <FilterChip
                             key={filter.value}
@@ -183,7 +183,7 @@ export function ExercisePicker({
                         </FilterChip>
                     ))}
                 </div>
-                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+                <div className="flex shrink-0 flex-wrap gap-1.5">
                     {ZONE_FILTERS.map((filter) => (
                         <FilterChip
                             key={filter.value}
@@ -195,7 +195,7 @@ export function ExercisePicker({
                     ))}
                 </div>
 
-                <div className="-mx-2 min-h-48 flex-1 overflow-y-auto">
+                <div className="-mx-2 min-h-48 flex-1 overflow-y-auto overscroll-contain">
                     {loading && results.length === 0 ? (
                         <div className="flex h-48 items-center justify-center">
                             <Spinner />
