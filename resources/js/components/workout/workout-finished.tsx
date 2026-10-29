@@ -1,7 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { toPng } from 'html-to-image';
 import { Check, Link2, Pencil, Star, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { StatTile } from '@/components/gymrat/stat-tile';
 import { MASCOT_SRC } from '@/components/gymrat/suggestion-callout';
@@ -18,7 +18,6 @@ import {
     exerciseSummary,
     formatGrouped,
     formatRecordValue,
-    formatSet,
 } from './workout-helpers';
 
 /**
@@ -28,11 +27,14 @@ export function WorkoutFinished({
     session,
     entries,
     records,
+    streakDays = null,
     onEdit,
 }: {
     session: WorkoutSession;
     entries: Entry[];
     records: SessionRecord[];
+    /** Consecutive training days, set once the workout is finished. */
+    streakDays?: number | null;
     onEdit: () => void;
 }) {
     const sets = session.sets ?? [];
@@ -127,15 +129,27 @@ export function WorkoutFinished({
                                 label="Volumen"
                                 value={formatGrouped(Math.round(volume))}
                                 unit="kg"
+                                className={cn(
+                                    Math.round(volume) >= 10_000 &&
+                                        'max-sm:[&_.font-num]:text-[30px]',
+                                )}
                             />
                             <StatTile
                                 label="Series"
                                 value={formatNumber(workingSets.length)}
                             />
-                            <StatTile
-                                label="Ejercicios"
-                                value={formatNumber(performed.length)}
-                            />
+                            {streakDays !== null ? (
+                                <StatTile
+                                    label="Racha"
+                                    value={formatNumber(streakDays)}
+                                    unit={streakDays === 1 ? 'día' : 'días'}
+                                />
+                            ) : (
+                                <StatTile
+                                    label="Ejercicios"
+                                    value={formatNumber(performed.length)}
+                                />
+                            )}
                         </div>
 
                         {/* Records */}
@@ -237,7 +251,9 @@ export function WorkoutFinished({
                             session={session}
                             volume={volume}
                             setCount={workingSets.length}
-                            performed={performed}
+                            exerciseCount={performed.length}
+                            records={records}
+                            streakDays={streakDays}
                         />
                     </div>
                 </div>
@@ -246,11 +262,6 @@ export function WorkoutFinished({
     );
 }
 
-type Performed = {
-    exercise: Entry['exercise'];
-    best: ReturnType<typeof bestSet>;
-};
-
 /**
  * Inline share block: public link, social networks and the story image.
  */
@@ -258,28 +269,24 @@ function ShareBlock({
     session,
     volume,
     setCount,
-    performed,
+    exerciseCount,
+    records,
+    streakDays,
 }: {
     session: WorkoutSession;
     volume: number;
     setCount: number;
-    performed: Performed[];
+    exerciseCount: number;
+    records: SessionRecord[];
+    streakDays: number | null;
 }) {
     const [copiedText, copy] = useClipboard();
     const [enabling, setEnabling] = useState(false);
     const [exporting, setExporting] = useState(false);
     const storyRef = useRef<HTMLDivElement>(null);
-    // The off-screen story card is client-only (it is never visible and
-    // depends on the browser location).
-    const [mounted, setMounted] = useState(false);
     const shareUrl = session.share_url;
-    const duration =
-        session.duration_minutes !== null
-            ? `${session.duration_minutes} min`
-            : '—';
+    const record = records[0];
     const text = `He completado "${session.name}": ${setCount} series y ${formatKg(volume)} de volumen.`;
-
-    useEffect(() => setMounted(true), []);
 
     const enable = () =>
         router.post(
@@ -413,55 +420,61 @@ function ShareBlock({
                 {exporting ? 'Generando…' : 'Imagen para historias'}
             </Button>
 
-            {mounted && (
-                <div
-                    aria-hidden
-                    className="pointer-events-none fixed top-0 -left-[10000px]"
-                >
-                    <div ref={storyRef} style={{ width: 1080, height: 1920 }}>
-                        <StoryCard
-                            badge="Entrenamiento"
-                            title={session.name}
-                            subtitle={`${formatDate(session.started_at)} · ${duration} · ${formatKg(volume)}`}
-                        >
-                            {performed.slice(0, 8).map((item) => (
-                                <div
-                                    key={item.exercise.id}
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        gap: 24,
-                                        borderBottom: '2px solid #3f3f46',
-                                        paddingBottom: 20,
-                                    }}
-                                >
-                                    <span style={{ fontWeight: 700 }}>
-                                        {item.exercise.name}
-                                    </span>
-                                    <span
-                                        style={{
-                                            color: '#facc15',
-                                            whiteSpace: 'nowrap',
-                                        }}
-                                    >
-                                        {item.best
-                                            ? formatSet(
-                                                  item.best,
-                                                  item.exercise.tracking_type,
-                                              )
-                                            : ''}
-                                    </span>
-                                </div>
-                            ))}
-                            {performed.length > 8 && (
-                                <div style={{ color: '#a1a1aa' }}>
-                                    y {performed.length - 8} ejercicios más
-                                </div>
-                            )}
-                        </StoryCard>
-                    </div>
+            <div
+                aria-hidden
+                className="pointer-events-none fixed top-0 -left-[10000px]"
+            >
+                <div ref={storyRef} style={{ width: 1080, height: 1920 }}>
+                    <StoryCard
+                        badge="Entrenamiento terminado"
+                        title={session.name}
+                        date={formatDate(session.started_at)}
+                        stats={[
+                            {
+                                label: 'Volumen',
+                                value: formatGrouped(Math.round(volume)),
+                                unit: 'kg',
+                            },
+                            {
+                                label: 'Duración',
+                                value:
+                                    session.duration_minutes !== null
+                                        ? formatNumber(session.duration_minutes)
+                                        : '—',
+                                unit:
+                                    session.duration_minutes !== null
+                                        ? 'min'
+                                        : undefined,
+                            },
+                        ]}
+                        highlight={
+                            record
+                                ? {
+                                      label: 'Nuevo récord personal',
+                                      title: `${record.exercise} ${record.summary}`,
+                                      detail: `${record.label}: ${formatRecordValue(record.type, record.value)}, antes ${formatRecordValue(record.type, record.previous)}`,
+                                  }
+                                : undefined
+                        }
+                        tiles={[
+                            { label: 'Series', value: formatNumber(setCount) },
+                            {
+                                label: 'Ejercicios',
+                                value: formatNumber(exerciseCount),
+                            },
+                            ...(streakDays !== null
+                                ? [
+                                      {
+                                          label: 'Racha',
+                                          value: formatNumber(streakDays),
+                                          unit: 'd',
+                                      },
+                                  ]
+                                : []),
+                        ]}
+                    />
                 </div>
-            )}
+            </div>
         </section>
     );
 }

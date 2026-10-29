@@ -14,7 +14,6 @@ import type { BarShapeProps } from 'recharts';
 import {
     ChartContainer,
     ChartLegend,
-    ChartLegendContent,
     ChartTooltip,
     ChartTooltipContent,
 } from '@/components/ui/chart';
@@ -28,6 +27,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import {
+    BODY_ZONE_COLORS,
     BODY_ZONE_LABELS,
     BODY_ZONES,
     bodyZoneChartConfig,
@@ -42,6 +42,7 @@ import {
 import { cn } from '@/lib/utils';
 import { show as showExercise } from '@/routes/exercises';
 import type {
+    BodyZone,
     MuscleDistribution,
     PersonalRecord,
     WeeklyRunning,
@@ -150,7 +151,14 @@ export function WeeklyVolumeChart({
                         />
                     }
                 />
-                <ChartLegend content={<ChartLegendContent />} />
+                <ChartLegend
+                    content={() => (
+                        <ZoneLegend
+                            zones={visibleZones}
+                            className="justify-start"
+                        />
+                    )}
+                />
                 {visibleZones.map((zone, index) => (
                     <Bar
                         key={zone}
@@ -248,14 +256,25 @@ export function MuscleDistributionChart({
     );
 }
 
-function ZoneLegend({ zones }: { zones: typeof BODY_ZONES }) {
+export function ZoneLegend({
+    zones,
+    className,
+}: {
+    zones: BodyZone[];
+    className?: string;
+}) {
     return (
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-3 text-xs">
+        <div
+            className={cn(
+                'flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-3 text-[13px] font-semibold',
+                className,
+            )}
+        >
             {zones.map((zone) => (
                 <div key={zone} className="flex items-center gap-1.5">
                     <span
-                        className="size-2 shrink-0 rounded-[2px]"
-                        style={{ backgroundColor: `var(--color-${zone})` }}
+                        className="size-2.5 shrink-0 rounded-[3px]"
+                        style={{ backgroundColor: BODY_ZONE_COLORS[zone] }}
                     />
                     {BODY_ZONE_LABELS[zone]}
                 </div>
@@ -421,4 +440,294 @@ export function PersonalRecordsTable({
             </TableBody>
         </Table>
     );
+}
+
+/**
+ * Card used by the dashboard and the stats page: bold title, muted caption
+ * on the right and the content below.
+ */
+export function Panel({
+    title,
+    caption,
+    action,
+    children,
+    className,
+    ...props
+}: {
+    title: ReactNode;
+    caption?: ReactNode;
+    action?: ReactNode;
+    children: ReactNode;
+    className?: string;
+} & Omit<ComponentProps<'section'>, 'title'>) {
+    return (
+        <section
+            className={cn(
+                'flex min-w-0 flex-col gap-4 rounded-xl bg-card p-5 text-card-foreground md:p-6',
+                className,
+            )}
+            {...props}
+        >
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h2 className="text-lg leading-tight font-bold">{title}</h2>
+                {caption && (
+                    <span className="text-[13px] text-muted-foreground">
+                        {caption}
+                    </span>
+                )}
+                {action}
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function zonesIn(rows: { zone: BodyZone }[]): BodyZone[] {
+    const order: BodyZone[] = [...BODY_ZONES, 'cuerpo_completo'];
+
+    return order.filter((zone) => rows.some((row) => row.zone === zone));
+}
+
+/**
+ * Sets per muscle as labelled bars (lighter than a chart, readable on phones).
+ */
+export function MuscleBars({
+    data,
+    limit = 8,
+}: {
+    data: MuscleDistribution[];
+    limit?: number;
+}) {
+    const rows = data.slice(0, limit);
+    const max = Math.max(...rows.map((row) => row.sets), 1);
+
+    return (
+        <div>
+            <ul className="space-y-2.5">
+                {rows.map((row) => (
+                    <li
+                        key={row.muscle}
+                        className="grid grid-cols-[minmax(0,7.5rem)_1fr_2.25rem] items-center gap-3 text-sm sm:grid-cols-[minmax(0,9rem)_1fr_2.5rem]"
+                    >
+                        <span className="truncate font-medium">
+                            {row.muscle}
+                            <span className="sr-only">
+                                {` (${BODY_ZONE_LABELS[row.zone]})`}
+                            </span>
+                        </span>
+                        <span
+                            aria-hidden
+                            className="h-4 overflow-hidden rounded-[4px] bg-muted"
+                        >
+                            <span
+                                className="block h-full rounded-[4px]"
+                                style={{
+                                    width: `${(row.sets / max) * 100}%`,
+                                    backgroundColor: BODY_ZONE_COLORS[row.zone],
+                                }}
+                            />
+                        </span>
+                        <span className="text-right font-num">
+                            {formatNumber(row.sets)}
+                            <span className="sr-only"> series</span>
+                        </span>
+                    </li>
+                ))}
+            </ul>
+            <ZoneLegend zones={zonesIn(rows)} className="justify-start" />
+        </div>
+    );
+}
+
+/**
+ * Share of working sets per body zone, as one stacked bar with labels.
+ */
+export function ZoneShareBar({ data }: { data: MuscleDistribution[] }) {
+    const total = data.reduce((sum, row) => sum + row.sets, 0);
+    const shares = zonesIn(data)
+        .map((zone) => {
+            const sets = data
+                .filter((row) => row.zone === zone)
+                .reduce((sum, row) => sum + row.sets, 0);
+
+            return { zone, percent: total ? (sets / total) * 100 : 0 };
+        })
+        .sort((a, b) => b.percent - a.percent);
+
+    return (
+        <div className="space-y-2.5">
+            <div
+                aria-hidden
+                className="flex h-5 gap-0.5 overflow-hidden rounded-md"
+            >
+                {shares.map((share) => (
+                    <span
+                        key={share.zone}
+                        style={{
+                            width: `${share.percent}%`,
+                            backgroundColor: BODY_ZONE_COLORS[share.zone],
+                        }}
+                    />
+                ))}
+            </div>
+            <ul className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-[13px] font-semibold">
+                {shares.map((share) => (
+                    <li key={share.zone} className="flex items-center gap-1.5">
+                        <span
+                            aria-hidden
+                            className="size-2.5 shrink-0 rounded-[3px]"
+                            style={{
+                                backgroundColor: BODY_ZONE_COLORS[share.zone],
+                            }}
+                        />
+                        {BODY_ZONE_LABELS[share.zone]}{' '}
+                        {formatNumber(Math.round(share.percent))}%
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+export type RecordRow = {
+    key: string | number;
+    title: string;
+    href?: string;
+    date: string | null;
+    /** Main mark, e.g. "67,5 × 10" or "54:30". */
+    value: string;
+    /** Secondary mark, e.g. the estimated 1RM. */
+    detail?: string;
+    /** Yellow highlight (recent record). */
+    highlight?: boolean;
+};
+
+/**
+ * Personal records as rows: name and date on the left, the mark on the right.
+ */
+export function RecordList({ rows }: { rows: RecordRow[] }) {
+    return (
+        <ul className="divide-y">
+            {rows.map((row) => {
+                const date = row.date ? shortDay(row.date) : null;
+
+                return (
+                    <li
+                        key={row.key}
+                        className="flex min-h-14 items-center gap-3 py-2.5"
+                    >
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate font-semibold">
+                                {row.href ? (
+                                    <Link
+                                        href={row.href}
+                                        className="rounded-sm hover:underline"
+                                    >
+                                        {row.title}
+                                    </Link>
+                                ) : (
+                                    row.title
+                                )}
+                            </p>
+                            {date && (
+                                <p className="text-xs text-muted-foreground sm:hidden">
+                                    {date}
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end sm:flex-row sm:items-baseline sm:gap-6">
+                            <p
+                                className={cn(
+                                    'font-num text-lg leading-tight whitespace-nowrap',
+                                    row.highlight && 'text-primary-text',
+                                )}
+                            >
+                                {row.value}
+                                {row.highlight && (
+                                    <span className="sr-only">
+                                        {' '}
+                                        (récord reciente)
+                                    </span>
+                                )}
+                            </p>
+                            {row.detail && (
+                                <p className="text-xs whitespace-nowrap text-muted-foreground sm:w-24 sm:text-right sm:text-sm">
+                                    {row.detail}
+                                </p>
+                            )}
+                        </div>
+                        {date && (
+                            <span className="hidden w-12 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground sm:inline">
+                                {date}
+                            </span>
+                        )}
+                    </li>
+                );
+            })}
+        </ul>
+    );
+}
+
+/**
+ * Parses "2026-10-29" as a local date (new Date() would read it as UTC).
+ */
+export function parseDay(value: string): Date {
+    return new Date(
+        /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value,
+    );
+}
+
+/**
+ * "29 oct".
+ */
+export function shortDay(value: string): string {
+    return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' })
+        .format(parseDay(value))
+        .replace('.', '');
+}
+
+/**
+ * "67,5 × 10" for a record set.
+ */
+export function formatBestSet(record: PersonalRecord): string {
+    return `${formatNumber(record.weight_kg)} × ${record.reps}`;
+}
+
+/**
+ * Turns strength records into RecordList rows.
+ */
+export function strengthRecordRows(
+    records: PersonalRecord[],
+    {
+        highlightDays,
+        withDetail = true,
+    }: { highlightDays?: number; withDetail?: boolean } = {},
+): RecordRow[] {
+    const limit = highlightDays
+        ? Date.now() - highlightDays * 24 * 60 * 60 * 1000
+        : null;
+
+    return records.map((record) => ({
+        key: record.exercise_id,
+        title: record.exercise,
+        href: showExercise.url(record.exercise_id),
+        date: record.date,
+        value: formatBestSet(record),
+        detail: withDetail
+            ? `1RM ${formatKg(record.estimated_1rm)}`
+            : undefined,
+        highlight: limit === null || new Date(record.date).getTime() >= limit,
+    }));
+}
+
+const groupedFormatter = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 1,
+    useGrouping: 'always',
+});
+
+/**
+ * Like formatNumber, but always groups thousands ("8.023" instead of "8023").
+ */
+export function formatThousands(value: number): string {
+    return groupedFormatter.format(value);
 }

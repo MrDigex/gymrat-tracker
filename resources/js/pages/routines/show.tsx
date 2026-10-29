@@ -3,34 +3,31 @@ import {
     ArrowDown,
     ArrowLeft,
     ArrowUp,
-    Clock,
-    Dumbbell,
-    EllipsisVertical,
+    ChevronDown,
+    ChevronLeft,
+    ChevronUp,
+    Ellipsis,
     Globe,
-    History,
     Lock,
     Pencil,
     Play,
     Plus,
-    Target,
+    Share2,
     Trash2,
 } from 'lucide-react';
-import type { ComponentProps, FormEvent } from 'react';
+import type { ComponentProps, FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { ExerciseImage } from '@/components/exercise-image';
 import { ExercisePicker, fetchJson } from '@/components/exercise-picker';
 import InputError from '@/components/input-error';
 import { ShareDialog, StoryCard } from '@/components/share-dialog';
-import { SuggestionCallout } from '@/components/gymrat/suggestion-callout';
+import {
+    MASCOT_SRC,
+    SuggestionCallout,
+} from '@/components/gymrat/suggestion-callout';
+import { formatRest, routineSummary } from '@/components/routines/routine-meta';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import {
     Dialog,
     DialogClose,
@@ -51,12 +48,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    formatDateTime,
-    formatDuration,
-    formatTarget,
-    parseDuration,
-} from '@/lib/format';
+import { formatDuration, formatTarget, parseDuration } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import exercises from '@/routes/exercises';
 import routines from '@/routes/routines';
@@ -152,10 +144,28 @@ function toPayload(data: TargetData, trackingType: TrackingType) {
     };
 }
 
+function sessionDay(value: string): string {
+    const date = new Date(value);
+    const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'short' })
+        .format(date)
+        .replace('.', '');
+    const month = new Intl.DateTimeFormat('es-ES', { month: 'short' })
+        .format(date)
+        .replace('.', '');
+
+    return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date.getDate()} ${month}`;
+}
+
+const volumeFormatter = new Intl.NumberFormat('es-ES', {
+    maximumFractionDigits: 1,
+    useGrouping: 'always',
+});
+
 export default function RoutineShow({ routine, recentSessions }: Props) {
     const items = routine.exercises ?? [];
     const [starting, setStarting] = useState(false);
     const [highlightId, setHighlightId] = useState<number | null>(null);
+    const summary = routineSummary(routine, items.length);
 
     const start = () => {
         setStarting(true);
@@ -182,17 +192,66 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
         );
     };
 
+    const share = (trigger: ReactNode) => (
+        <ShareDialog
+            shareUrl={routine.share_url}
+            enableShare={routines.share(routine.id)}
+            title={routine.name}
+            text={`Mira mi rutina «${routine.name}» en GymRat Tracker`}
+            fileName={`rutina-${routine.id}`}
+            trigger={trigger}
+            storyCard={
+                <StoryCard
+                    badge="Rutina"
+                    title={routine.name}
+                    subtitle={summary}
+                >
+                    {items.slice(0, 10).map((item, index) => (
+                        <div
+                            key={item.id}
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: 24,
+                                borderBottom: '2px solid #3f3f46',
+                                paddingBottom: 20,
+                            }}
+                        >
+                            <span style={{ fontWeight: 700 }}>
+                                {index + 1}. {item.exercise.name}
+                            </span>
+                            <span
+                                style={{
+                                    color: '#facc15',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {formatTarget(item)}
+                            </span>
+                        </div>
+                    ))}
+                    {items.length > 10 && (
+                        <div style={{ color: '#a1a1aa' }}>
+                            y {items.length - 10} más…
+                        </div>
+                    )}
+                </StoryCard>
+            }
+        />
+    );
+
     const addButton = (
         <ExercisePicker
             title="Añadir ejercicio"
             excludeIds={items.map((item) => item.exercise.id)}
-            renderSelected={(exercise, { back, close }) => (
+            renderSelected={(exercise, { back, close, layout }) => (
                 <AddExerciseStep
                     key={exercise.id}
                     routine={routine}
                     exercise={exercise}
                     existingIds={items.map((item) => item.id)}
-                    onBack={back}
+                    layout={layout}
+                    onBack={layout === 'split' ? close : back}
                     onDone={(id) => {
                         close();
                         highlight(id);
@@ -202,9 +261,9 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
             trigger={
                 <button
                     type="button"
-                    className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 p-5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                    className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-muted-foreground/50 p-4 text-[15px] font-bold transition-colors hover:border-primary hover:bg-primary/5"
                 >
-                    <Plus className="size-5" /> Añadir ejercicio
+                    <Plus className="size-5" aria-hidden /> Añadir ejercicio
                 </button>
             }
         />
@@ -214,141 +273,130 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
         <>
             <Head title={routine.name} />
 
-            <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4">
-                <div className="space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 space-y-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="text-2xl font-semibold tracking-tight">
-                                    {routine.name}
-                                </h1>
-                                {routine.is_public && (
-                                    <Badge variant="secondary">
-                                        <Globe /> Pública
-                                    </Badge>
-                                )}
-                            </div>
-                            {routine.description && (
-                                <p className="text-sm whitespace-pre-line text-muted-foreground">
-                                    {routine.description}
-                                </p>
-                            )}
-                            <p className="text-sm text-muted-foreground">
-                                {items.length}{' '}
-                                {items.length === 1
-                                    ? 'ejercicio'
-                                    : 'ejercicios'}
-                            </p>
-                        </div>
+            <div className="flex w-full flex-1 flex-col gap-5 p-4 md:gap-6 md:p-6 lg:p-8">
+                <div className="-my-1 flex items-center justify-between gap-2 md:hidden">
+                    <Link
+                        href={routines.index()}
+                        className="-ml-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                        <ChevronLeft className="size-5" aria-hidden />
+                        Rutinas
+                    </Link>
+                    <div className="flex gap-2">
+                        {share(
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-11 rounded-lg"
+                                aria-label="Compartir rutina"
+                            >
+                                <Share2 aria-hidden />
+                            </Button>,
+                        )}
                         <RoutineMenu routine={routine} />
-                    </div>
-
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                        <Button
-                            size="lg"
-                            className="sm:flex-1"
-                            onClick={start}
-                            disabled={starting}
-                        >
-                            {starting ? <Spinner /> : <Play />} Empezar
-                            entrenamiento
-                        </Button>
-                        <ShareDialog
-                            shareUrl={routine.share_url}
-                            enableShare={routines.share(routine.id)}
-                            title={routine.name}
-                            text={`Mira mi rutina «${routine.name}» en GymRat Tracker`}
-                            fileName={`rutina-${routine.id}`}
-                            trigger={
-                                <Button size="lg" variant="outline">
-                                    <Globe /> Compartir
-                                </Button>
-                            }
-                            storyCard={
-                                <StoryCard
-                                    badge="Rutina"
-                                    title={routine.name}
-                                    subtitle={`${items.length} ejercicios`}
-                                >
-                                    {items.slice(0, 10).map((item, index) => (
-                                        <div
-                                            key={item.id}
-                                            style={{
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                gap: 24,
-                                                borderBottom:
-                                                    '2px solid #3f3f46',
-                                                paddingBottom: 20,
-                                            }}
-                                        >
-                                            <span style={{ fontWeight: 700 }}>
-                                                {index + 1}.{' '}
-                                                {item.exercise.name}
-                                            </span>
-                                            <span
-                                                style={{
-                                                    color: '#facc15',
-                                                    whiteSpace: 'nowrap',
-                                                }}
-                                            >
-                                                {formatTarget(item)}
-                                            </span>
-                                        </div>
-                                    ))}
-                                    {items.length > 10 && (
-                                        <div style={{ color: '#a1a1aa' }}>
-                                            y {items.length - 10} más…
-                                        </div>
-                                    )}
-                                </StoryCard>
-                            }
-                        />
                     </div>
                 </div>
 
-                <section className="space-y-3">
-                    <h2 className="text-lg font-semibold">Ejercicios</h2>
-
-                    {items.length === 0 ? (
-                        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed p-8 text-center">
-                            <Dumbbell className="size-8 text-muted-foreground" />
-                            <p className="font-medium">Tu rutina está vacía</p>
-                            <p className="max-w-sm text-sm text-muted-foreground">
-                                Añade ejercicios y te propondremos series,
-                                repeticiones y peso según tu último
-                                entrenamiento para que sigas progresando.
-                            </p>
+                <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                    <div className="min-w-0 space-y-2">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <h1 className="min-w-0 font-num text-5xl leading-[0.95] break-words uppercase md:text-6xl">
+                                {routine.name}
+                            </h1>
+                            {routine.is_public && (
+                                <Badge variant="secondary">
+                                    <Globe aria-hidden /> Pública
+                                </Badge>
+                            )}
                         </div>
-                    ) : (
-                        <ol className="space-y-3">
-                            {items.map((item, index) => (
-                                <RoutineExerciseItem
-                                    key={item.id}
-                                    routine={routine}
-                                    item={item}
-                                    index={index}
-                                    isLast={index === items.length - 1}
-                                    highlighted={item.id === highlightId}
-                                    onMove={(offset) => move(index, offset)}
+                        <p className="max-w-2xl text-[15px] whitespace-pre-line text-muted-foreground">
+                            {routine.description &&
+                                `${routine.description.trim().replace(/([^.!?…])$/, '$1.')} `}
+                            {summary}.
+                        </p>
+                    </div>
+                    <div className="hidden shrink-0 items-center gap-3 md:flex">
+                        {share(
+                            <Button
+                                variant="outline"
+                                className="h-12 rounded-lg px-5 text-[15px] font-bold"
+                            >
+                                <Share2 aria-hidden /> Compartir
+                            </Button>,
+                        )}
+                        <Button
+                            className="h-12 rounded-lg px-5 text-[15px] font-bold"
+                            onClick={start}
+                            disabled={starting}
+                        >
+                            {starting ? (
+                                <Spinner />
+                            ) : (
+                                <Play className="fill-current" aria-hidden />
+                            )}
+                            Empezar entrenamiento
+                        </Button>
+                        <RoutineMenu routine={routine} />
+                    </div>
+                    <Button
+                        size="workout"
+                        className="w-full md:hidden"
+                        onClick={start}
+                        disabled={starting}
+                    >
+                        {starting ? (
+                            <Spinner />
+                        ) : (
+                            <Play className="fill-current" aria-hidden />
+                        )}
+                        Empezar entrenamiento
+                    </Button>
+                </header>
+
+                <div className="grid items-start gap-5 md:gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                    <section
+                        aria-label="Ejercicios"
+                        className="flex flex-col gap-2.5"
+                    >
+                        {items.length === 0 ? (
+                            <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 text-center">
+                                <img
+                                    src={MASCOT_SRC}
+                                    alt=""
+                                    className="size-24 rounded-2xl object-cover"
                                 />
-                            ))}
-                        </ol>
-                    )}
+                                <p className="font-num text-xl uppercase">
+                                    Tu rutina está vacía
+                                </p>
+                                <p className="max-w-sm text-sm text-muted-foreground">
+                                    Añade ejercicios y te propondremos series,
+                                    repeticiones y peso según tu último
+                                    entrenamiento para que sigas progresando.
+                                </p>
+                            </div>
+                        ) : (
+                            <ol className="flex flex-col gap-2.5">
+                                {items.map((item, index) => (
+                                    <RoutineExerciseItem
+                                        key={item.id}
+                                        routine={routine}
+                                        item={item}
+                                        index={index}
+                                        isLast={index === items.length - 1}
+                                        highlighted={item.id === highlightId}
+                                        onMove={(offset) => move(index, offset)}
+                                    />
+                                ))}
+                            </ol>
+                        )}
 
-                    {addButton}
-                </section>
+                        {addButton}
+                    </section>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <History className="size-4" /> Sesiones recientes
-                        </CardTitle>
-                        <CardDescription>
-                            Tus últimos entrenamientos con esta rutina.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                    <section className="rounded-xl bg-card p-5">
+                        <h2 className="mb-2 text-lg font-bold">
+                            Sesiones recientes
+                        </h2>
                         {recentSessions.length === 0 ? (
                             <p className="text-sm text-muted-foreground">
                                 Todavía no has entrenado con esta rutina.
@@ -359,30 +407,47 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
                                     <li key={session.id}>
                                         <Link
                                             href={workouts.show(session.id)}
-                                            className="flex items-center justify-between gap-3 py-3 text-sm hover:text-primary"
+                                            className="-mx-2 flex min-h-11 items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted/60"
                                         >
                                             <span className="min-w-0">
-                                                <span className="block truncate font-medium">
-                                                    {session.name}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatDateTime(
+                                                <span className="block font-medium">
+                                                    {sessionDay(
                                                         session.started_at,
                                                     )}
                                                 </span>
+                                                {session.finished_at &&
+                                                    session.volume_kg !==
+                                                        undefined && (
+                                                        <span className="block text-xs text-muted-foreground">
+                                                            {session.sets_count ??
+                                                                0}{' '}
+                                                            series
+                                                            {session.duration_minutes !==
+                                                                null &&
+                                                                ` · ${session.duration_minutes} min`}
+                                                        </span>
+                                                    )}
                                             </span>
-                                            <span className="shrink-0 text-right text-xs text-muted-foreground">
-                                                {session.finished_at ? (
-                                                    <>
+                                            <span className="shrink-0 text-right">
+                                                {!session.finished_at ? (
+                                                    <Badge>En curso</Badge>
+                                                ) : session.volume_kg !==
+                                                  undefined ? (
+                                                    <span className="font-num">
+                                                        {volumeFormatter.format(
+                                                            session.volume_kg,
+                                                        )}{' '}
+                                                        kg
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">
                                                         {session.sets_count ??
                                                             0}{' '}
                                                         series
                                                         {session.duration_minutes !==
                                                             null &&
                                                             ` · ${session.duration_minutes} min`}
-                                                    </>
-                                                ) : (
-                                                    <Badge>En curso</Badge>
+                                                    </span>
                                                 )}
                                             </span>
                                         </Link>
@@ -390,8 +455,8 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
                                 ))}
                             </ul>
                         )}
-                    </CardContent>
-                </Card>
+                    </section>
+                </div>
             </div>
         </>
     );
@@ -406,11 +471,12 @@ function RoutineMenu({ routine }: { routine: Routine }) {
             <DropdownMenu modal={false}>
                 <DropdownMenuTrigger asChild>
                     <Button
-                        variant="ghost"
+                        variant="outline"
                         size="icon"
+                        className="size-11 rounded-lg md:size-12"
                         aria-label="Opciones de la rutina"
                     >
-                        <EllipsisVertical />
+                        <Ellipsis aria-hidden />
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -524,93 +590,123 @@ function RoutineExerciseItem({
 }) {
     const [editing, setEditing] = useState(false);
     const [removing, setRemoving] = useState(false);
+    const muscles = item.exercise.primary_muscles
+        ?.map((muscle) => muscle.name)
+        .join(', ');
 
     return (
         <li
             className={cn(
-                'flex gap-3 rounded-xl border bg-card p-3 transition-shadow duration-300',
+                'flex items-center gap-2 rounded-xl bg-card p-2 pr-1 transition-shadow duration-300 md:gap-3 md:p-2.5',
                 highlighted && 'ring-2 ring-primary',
             )}
         >
+            <div className="hidden shrink-0 flex-col md:flex">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground"
+                    aria-label={`Subir ${item.exercise.name}`}
+                    disabled={index === 0}
+                    onClick={() => onMove(-1)}
+                >
+                    <ChevronUp aria-hidden />
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground"
+                    aria-label={`Bajar ${item.exercise.name}`}
+                    disabled={isLast}
+                    onClick={() => onMove(1)}
+                >
+                    <ChevronDown aria-hidden />
+                </Button>
+            </div>
             <div className="relative shrink-0">
                 <ExerciseImage
                     exercise={item.exercise}
                     animate={false}
-                    className="h-16 w-24 rounded-lg [&_svg]:size-5"
+                    className="size-14 rounded-md md:h-14 md:w-20 [&_svg]:size-5"
                 />
-                <span className="absolute -top-2 -left-2 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                <span className="absolute -top-1.5 -left-1.5 grid size-6 place-items-center rounded-full bg-primary font-num text-xs text-primary-foreground ring-2 ring-card">
                     {index + 1}
                 </span>
             </div>
-            <div className="min-w-0 flex-1 space-y-1">
-                <Link
-                    href={exercises.show(item.exercise.id)}
-                    className="line-clamp-2 leading-tight font-medium hover:underline"
-                >
-                    {item.exercise.name}
-                </Link>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                    <span className="inline-flex items-center gap-1 font-medium text-primary">
-                        <Target className="size-3.5" /> {formatTarget(item)}
-                    </span>
-                    {item.rest_seconds !== null && (
-                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="size-3" /> Descanso{' '}
-                            {formatDuration(item.rest_seconds)}
-                        </span>
+            <div className="min-w-0 flex-1 md:grid md:grid-cols-[minmax(0,1fr)_auto_4rem] md:items-center md:gap-4">
+                <div className="min-w-0">
+                    <Link
+                        href={exercises.show(item.exercise.id)}
+                        className="line-clamp-2 leading-tight font-bold hover:underline"
+                    >
+                        {item.exercise.name}
+                    </Link>
+                    {muscles && (
+                        <p className="hidden truncate text-[13px] text-muted-foreground md:block">
+                            {muscles}
+                        </p>
+                    )}
+                    {item.notes && (
+                        <p className="truncate text-xs text-muted-foreground italic">
+                            {item.notes}
+                        </p>
                     )}
                 </div>
-                {item.notes && (
-                    <p className="text-xs text-muted-foreground italic">
-                        {item.notes}
-                    </p>
-                )}
+                <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5 md:mt-0">
+                    <span className="font-num text-[15px] md:text-lg">
+                        {formatTarget(item)}
+                    </span>
+                    {item.rest_seconds !== null && (
+                        <span className="text-xs text-muted-foreground md:hidden">
+                            {formatRest(item.rest_seconds)}
+                        </span>
+                    )}
+                </p>
+                <span className="hidden text-right text-[13px] text-muted-foreground md:block">
+                    {item.rest_seconds !== null && (
+                        <>
+                            <span className="sr-only">Descanso </span>
+                            {formatRest(item.rest_seconds)}
+                        </>
+                    )}
+                </span>
             </div>
-            <div className="flex shrink-0 flex-col items-center">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Subir"
-                    disabled={index === 0}
-                    onClick={() => onMove(-1)}
-                >
-                    <ArrowUp />
-                </Button>
-                <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            aria-label="Opciones del ejercicio"
-                        >
-                            <EllipsisVertical />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setEditing(true)}>
-                            <Pencil /> Editar objetivos
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            variant="destructive"
-                            onSelect={() => setRemoving(true)}
-                        >
-                            <Trash2 /> Quitar de la rutina
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Bajar"
-                    disabled={isLast}
-                    onClick={() => onMove(1)}
-                >
-                    <ArrowDown />
-                </Button>
-            </div>
+            <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-11 shrink-0 text-muted-foreground"
+                        aria-label={`Opciones de ${item.exercise.name}`}
+                    >
+                        <Ellipsis aria-hidden />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => setEditing(true)}>
+                        <Pencil /> Editar objetivos
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        disabled={index === 0}
+                        onSelect={() => onMove(-1)}
+                    >
+                        <ArrowUp /> Subir
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        disabled={isLast}
+                        onSelect={() => onMove(1)}
+                    >
+                        <ArrowDown /> Bajar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => setRemoving(true)}
+                    >
+                        <Trash2 /> Quitar de la rutina
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
 
             <Dialog open={editing} onOpenChange={setEditing}>
                 <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
@@ -657,6 +753,7 @@ function AddExerciseStep(props: {
     routine: Routine;
     exercise: Exercise;
     existingIds: number[];
+    layout: 'split' | 'stacked';
     onBack: () => void;
     onDone: (routineExerciseId: number | null) => void;
 }) {
@@ -703,6 +800,7 @@ function AddExerciseForm({
     routine,
     exercise,
     existingIds,
+    layout,
     suggestion,
     onBack,
     onDone,
@@ -710,6 +808,7 @@ function AddExerciseForm({
     routine: Routine;
     exercise: Exercise;
     existingIds: number[];
+    layout: 'split' | 'stacked';
     suggestion: Suggestion | null;
     onBack: () => void;
     onDone: (routineExerciseId: number | null) => void;
@@ -736,7 +835,12 @@ function AddExerciseForm({
 
     return (
         <form onSubmit={submit} className="flex flex-col gap-4 pt-1">
-            <div className="flex items-center gap-3">
+            <div
+                className={cn(
+                    'flex items-center gap-3',
+                    layout === 'split' && 'hidden',
+                )}
+            >
                 <ExerciseImage
                     exercise={exercise}
                     animate={false}
@@ -769,14 +873,24 @@ function AddExerciseForm({
                 <Button
                     type="button"
                     variant="outline"
-                    size="lg"
+                    className="h-12 rounded-lg px-5 font-bold"
                     onClick={onBack}
                 >
-                    <ArrowLeft /> Atrás
+                    {layout === 'split' ? (
+                        'Cancelar'
+                    ) : (
+                        <>
+                            <ArrowLeft aria-hidden /> Atrás
+                        </>
+                    )}
                 </Button>
-                <Button type="submit" size="lg" disabled={form.processing}>
-                    {form.processing ? <Spinner /> : <Plus />} Añadir a la
-                    rutina
+                <Button
+                    type="submit"
+                    className="h-12 rounded-lg px-6 font-num text-base uppercase"
+                    disabled={form.processing}
+                >
+                    {form.processing ? <Spinner /> : <Plus aria-hidden />}{' '}
+                    Añadir a la rutina
                 </Button>
             </div>
         </form>
@@ -845,13 +959,19 @@ function TargetFields({
         props: ComponentProps<typeof Input> = {},
         errorKey: string = key,
     ) => (
-        <div className="grid gap-1.5">
-            <Label htmlFor={`target-${key}`}>{label}</Label>
+        <div className="grid min-w-0 gap-1.5">
+            <Label
+                htmlFor={`target-${key}`}
+                className="leading-tight font-bold"
+            >
+                {label}
+            </Label>
             <Input
                 id={`target-${key}`}
                 value={data[key]}
                 onChange={(event) => onChange(key, event.target.value)}
                 inputMode="numeric"
+                className="h-14 rounded-lg text-center font-num text-xl md:text-xl"
                 {...props}
             />
             <InputError message={errors[errorKey]} />
@@ -862,7 +982,7 @@ function TargetFields({
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-4">
                 {field('target_sets', 'Series', { type: 'number', min: 1 })}
                 {usesReps && (
                     <>
@@ -903,13 +1023,17 @@ function TargetFields({
                 })}
             </div>
             <div className="grid gap-1.5">
-                <Label htmlFor="target-notes">Notas (opcional)</Label>
-                <Input
+                <Label htmlFor="target-notes" className="font-bold">
+                    Notas (opcional)
+                </Label>
+                <Textarea
                     id="target-notes"
                     value={data.notes}
                     onChange={(event) => onChange('notes', event.target.value)}
                     placeholder="Ej. agarre prono, tempo 3-1-1"
                     maxLength={255}
+                    rows={2}
+                    className="rounded-lg"
                 />
                 <InputError message={errors.notes} />
             </div>

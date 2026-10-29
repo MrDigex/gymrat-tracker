@@ -17,10 +17,12 @@ export default function WorkoutShow({
     session,
     entries,
     records = [],
+    streakDays = null,
 }: {
     session: WorkoutSession;
     entries: WorkoutEntry[];
     records?: SessionRecord[];
+    streakDays?: number | null;
 }) {
     const [extraEntries, setExtraEntries] = useState<Entry[]>([]);
     const [editingFinished, setEditingFinished] = useState(false);
@@ -73,6 +75,7 @@ export default function WorkoutShow({
                     session={session}
                     entries={allEntries}
                     records={records}
+                    streakDays={streakDays}
                     onEdit={() => setEditingFinished(true)}
                 />
             ) : (

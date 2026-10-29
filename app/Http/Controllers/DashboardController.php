@@ -20,6 +20,11 @@ class DashboardController extends Controller
             'quote' => $quote?->only(['text', 'author']),
             'quoteOffset' => $request->integer('frase'),
             'kpis' => $stats->kpis($user),
+            'activeDays' => $stats->activeDays($user),
+            'nextRoutine' => ($next = $stats->nextRoutine($user))
+                ? ['id' => $next->id, 'name' => $next->name, 'exercises_count' => $next->routine_exercises_count]
+                : null,
+            'runningRecords' => Inertia::defer(fn () => $stats->runningRecords($user)),
             'weeklyVolume' => Inertia::defer(fn () => $stats->weeklyVolumeByZone($user, $from, now())),
             'muscleDistribution' => Inertia::defer(fn () => $stats->muscleDistribution($user, now()->subDays(30), now())),
             'weeklyRunning' => Inertia::defer(fn () => $stats->weeklyRunning($user, $from, now())),

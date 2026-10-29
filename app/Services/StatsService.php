@@ -8,6 +8,7 @@ use App\Enums\ExerciseCategory;
 use App\Models\Activity;
 use App\Models\Exercise;
 use App\Models\MuscleGroup;
+use App\Models\Routine;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSet;
@@ -66,11 +67,7 @@ class StatsService
      */
     public function streak(User $user): int
     {
-        $days = $user->workoutSessions()->where('started_at', '>=', now()->subYear())->pluck('started_at')
-            ->concat($user->activities()->where('started_at', '>=', now()->subYear())->pluck('started_at'))
-            ->map(fn (CarbonInterface $date) => $date->toDateString())
-            ->unique()
-            ->flip();
+        $days = $this->trainingDays($user, now()->subYear())->flip();
 
         $day = CarbonImmutable::today();
 
@@ -86,6 +83,42 @@ class StatsService
         }
 
         return $streak;
+    }
+
+    /**
+     * Dates (Y-m-d) of the last `$days` days with a workout or a run, oldest first.
+     *
+     * @return list<string>
+     */
+    public function activeDays(User $user, int $days = 7): array
+    {
+        return array_values($this->trainingDays($user, CarbonImmutable::today()->subDays($days - 1))->sort()->all());
+    }
+
+    /**
+     * The routine to suggest next: the one with exercises that was done least recently (or never).
+     */
+    public function nextRoutine(User $user): ?Routine
+    {
+        return $user->routines()
+            ->withCount('routineExercises')
+            ->withMax('workoutSessions', 'started_at')
+            ->get()
+            ->filter(fn (Routine $routine) => $routine->routine_exercises_count > 0)
+            ->sortBy(fn (Routine $routine) => $routine->workout_sessions_max_started_at ?? '')
+            ->first();
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    private function trainingDays(User $user, CarbonInterface $from): Collection
+    {
+        return $user->workoutSessions()->where('started_at', '>=', $from)->pluck('started_at')
+            ->concat($user->activities()->where('started_at', '>=', $from)->pluck('started_at'))
+            ->map(fn (CarbonInterface $date) => $date->toDateString())
+            ->unique()
+            ->values();
     }
 
     /**
@@ -304,6 +337,7 @@ class StatsService
                 'name' => $session->name ?? $session->routine->name ?? 'Entrenamiento libre',
                 'started_at' => $session->started_at->toIso8601String(),
                 'sets' => $session->sets->count(),
+                'duration_minutes' => $session->finished_at ? (int) $session->started_at->diffInMinutes($session->finished_at) : null,
                 'volume_kg' => round($session->sets->where('is_warmup', false)->sum(fn (WorkoutSet $set) => $this->volume($set)), 1),
             ])
             ->all());

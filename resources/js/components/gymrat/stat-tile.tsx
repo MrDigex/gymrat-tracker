@@ -1,17 +1,27 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 type StatTileProps = {
-    label: string;
+    label: ReactNode;
     value: string;
     unit?: string;
     /** Comparison text, e.g. "más que el mes pasado (65 km)". */
-    trend?: { direction: 'up' | 'down' | 'flat'; text: string };
+    trend?: { direction: 'up' | 'down' | 'flat'; text: ReactNode };
+    /** Helper text shown under the value when there is no trend. */
+    hint?: ReactNode;
     /** Values for the mini chart (optional). */
     spark?: number[];
     sparkColor?: string;
+    /** Accessible summary of the mini chart. */
+    sparkLabel?: string;
+    sparkClassName?: string;
     /** Hazard stripe on top: only for the streak. */
     hazard?: boolean;
+    /** Extra content on the right (e.g. the streak's week strip). */
+    aside?: ReactNode;
+    /** "empty": dashed outline and muted value, for users without data yet. */
+    variant?: 'default' | 'empty';
     className?: string;
 };
 
@@ -23,11 +33,17 @@ export function StatTile({
     value,
     unit,
     trend,
+    hint,
     spark,
     sparkColor = 'var(--primary)',
+    sparkLabel,
+    sparkClassName,
     hazard,
+    aside,
+    variant = 'default',
     className,
 }: StatTileProps) {
+    const empty = variant === 'empty';
     const TrendIcon =
         trend?.direction === 'up'
             ? ArrowUpRight
@@ -44,30 +60,42 @@ export function StatTile({
     return (
         <div
             className={cn(
-                'overflow-hidden rounded-xl bg-card text-card-foreground',
+                'overflow-hidden rounded-xl text-card-foreground',
+                empty ? 'border-2 border-dashed' : 'bg-card',
                 className,
             )}
         >
-            {hazard && <div className="h-[5px] bg-hazard" aria-hidden />}
-            <div className="flex items-end justify-between gap-3 p-4">
-                <div className="flex min-w-0 flex-col gap-1">
-                    <span className="text-[13px] text-muted-foreground">
+            {hazard && <div className="h-[6px] bg-hazard" aria-hidden />}
+            <div className="flex items-center justify-between gap-3 p-4">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                    <span className="text-[13px] font-medium text-muted-foreground">
                         {label}
                     </span>
-                    <span>
-                        <span className="font-num text-4xl leading-none lg:text-5xl">
+                    <span className="flex items-baseline gap-1">
+                        <span
+                            className={cn(
+                                'font-num text-[40px] leading-none lg:text-5xl',
+                                empty && 'text-muted-foreground/50',
+                            )}
+                        >
                             {value}
                         </span>
                         {unit && (
-                            <span className="ml-1 text-sm text-muted-foreground">
+                            <span
+                                className={cn(
+                                    'text-sm font-semibold text-muted-foreground',
+                                    empty &&
+                                        'font-num text-[40px] leading-none text-muted-foreground/50 lg:text-5xl',
+                                )}
+                            >
                                 {unit}
                             </span>
                         )}
                     </span>
-                    {trend && (
+                    {trend ? (
                         <span
                             className={cn(
-                                'flex items-center gap-1 text-xs',
+                                'flex items-start gap-1 text-xs font-medium',
                                 trendColor,
                             )}
                         >
@@ -78,19 +106,41 @@ export function StatTile({
                             />
                             <span>{trend.text}</span>
                         </span>
+                    ) : (
+                        hint && (
+                            <span className="text-xs font-medium text-muted-foreground">
+                                {hint}
+                            </span>
+                        )
                     )}
                 </div>
+                {aside}
                 {spark && spark.length > 1 && (
-                    <Sparkline data={spark} color={sparkColor} />
+                    <Sparkline
+                        data={spark}
+                        color={sparkColor}
+                        label={sparkLabel}
+                        className={sparkClassName}
+                    />
                 )}
             </div>
         </div>
     );
 }
 
-function Sparkline({ data, color }: { data: number[]; color: string }) {
-    const width = 72;
-    const height = 32;
+function Sparkline({
+    data,
+    color,
+    label,
+    className,
+}: {
+    data: number[];
+    color: string;
+    label?: string;
+    className?: string;
+}) {
+    const width = 112;
+    const height = 40;
     const min = Math.min(...data);
     const max = Math.max(...data);
     const points = data
@@ -102,11 +152,15 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 
     return (
         <svg
-            width={width}
-            height={height}
             viewBox={`0 0 ${width} ${height}`}
-            aria-hidden
-            className="shrink-0"
+            role={label ? 'img' : undefined}
+            aria-label={label}
+            aria-hidden={label ? undefined : true}
+            className={cn(
+                'h-10 w-16 shrink-0 overflow-visible sm:w-28',
+                className,
+            )}
+            preserveAspectRatio="none"
         >
             <polyline
                 points={points}
@@ -115,6 +169,7 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
                 strokeWidth={3}
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
             />
         </svg>
     );

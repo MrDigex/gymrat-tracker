@@ -21,7 +21,7 @@ use Inertia\Response;
 
 class WorkoutSessionController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, StatsService $stats): Response
     {
         $routines = $request->user()->routines()
             ->withCount('routineExercises')
@@ -40,10 +40,7 @@ class WorkoutSessionController extends Controller
         return Inertia::render('workouts/index', [
             'sessions' => $sessions,
             'routines' => RoutineResource::collection($routines)->resolve($request),
-            'suggestedRoutineId' => $routines
-                ->filter(fn (Routine $routine) => $routine->routine_exercises_count > 0)
-                ->sortBy(fn (Routine $routine) => $routine->workout_sessions_max_started_at ?? '')
-                ->first()?->id,
+            'suggestedRoutineId' => $stats->nextRoutine($request->user())?->id,
         ]);
     }
 

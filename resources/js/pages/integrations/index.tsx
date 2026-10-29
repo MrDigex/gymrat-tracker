@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
+import { timeAgo } from '@/components/settings/settings-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +33,8 @@ type IntegrationsProps = {
         configured: boolean;
         connected: boolean;
         athlete_id: number | null;
+        athlete_name: string | null;
+        last_import_at: string | null;
         connected_at: string | null;
         imported_count: number;
     };
@@ -215,7 +218,9 @@ function StravaSection({ strava }: { strava: IntegrationsProps['strava'] }) {
                             className="size-2 rounded-full bg-success"
                             aria-hidden
                         />
-                        Conectado desde el {formatDate(strava.connected_at)}
+                        {strava.athlete_name
+                            ? `Conectado como ${strava.athlete_name}`
+                            : `Conectado desde el ${formatDate(strava.connected_at)}`}
                     </span>
                 ) : (
                     'Recomendado: la forma más sencilla, sin hacer nada a mano'
@@ -275,8 +280,11 @@ function StravaSection({ strava }: { strava: IntegrationsProps['strava'] }) {
                         momento.{' '}
                         <span className="text-muted-foreground">
                             {strava.imported_count === 1
-                                ? 'Llevas 1 carrera importada.'
-                                : `Llevas ${strava.imported_count} carreras importadas.`}
+                                ? 'Llevas 1 carrera importada'
+                                : `Llevas ${strava.imported_count} carreras importadas`}
+                            {strava.last_import_at
+                                ? `; la última, ${timeAgo(strava.last_import_at)}.`
+                                : '.'}
                         </span>
                     </p>
                     <div className="grid grid-cols-[1fr_auto] gap-2">

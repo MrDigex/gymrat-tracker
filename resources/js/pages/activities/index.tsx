@@ -16,8 +16,10 @@ import {
     kmLabel,
     longDate,
     paceNumber,
+    isHyroxRun,
     shortDay,
 } from '@/components/activities/activity-ui';
+import { KmBars, paceInsight } from '@/components/activities/split-charts';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import activitiesRoutes from '@/routes/activities';
@@ -251,9 +253,17 @@ function RecordCard({
 }
 
 function rowSubtitle(activity: Activity): string {
+    const stations = (activity.splits ?? []).filter(
+        (split) => !isHyroxRun(split),
+    ).length;
+    const distance =
+        activity.type === 'hyrox' && stations > 0
+            ? `${kmLabel(activity.distance_m)} + ${stations} ${stations === 1 ? 'estación' : 'estaciones'}`
+            : kmLabel(activity.distance_m);
+
     return [
         shortDay(activity.started_at),
-        kmLabel(activity.distance_m),
+        distance,
         activity.type !== 'hyrox' ? activity.pace_label : null,
     ]
         .filter(Boolean)
@@ -294,11 +304,12 @@ function ActivityRow({
 }
 
 /**
- * Latest race, with its main stats. The list has no splits; the per-km
- * chart lives in the race detail.
+ * Latest race, with its main stats and (for runs) the per-km bars.
  */
 function FeaturedRace({ activity }: { activity: Activity }) {
     const isHyrox = activity.type === 'hyrox';
+    const splits = activity.splits ?? [];
+    const insight = isHyrox ? null : paceInsight(splits);
 
     return (
         <article className="overflow-hidden rounded-xl bg-card">
@@ -354,15 +365,23 @@ function FeaturedRace({ activity }: { activity: Activity }) {
                         />
                     </div>
                 </div>
+                {!isHyrox && splits.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                        <KmBars splits={splits} />
+                        {insight && (
+                            <p className="text-[13px] font-semibold text-primary-text">
+                                {insight}
+                            </p>
+                        )}
+                    </div>
+                )}
                 <Button
                     variant="secondary"
                     className="h-11 w-full rounded-xl font-bold"
                     asChild
                 >
                     <Link href={activitiesRoutes.show(activity.id)}>
-                        {isHyrox
-                            ? 'Ver tiempo por tramo'
-                            : 'Ver parciales por km'}
+                        {isHyrox ? 'Ver tiempo por tramo' : 'Ver detalle'}
                         <ChevronRight />
                     </Link>
                 </Button>

@@ -66,6 +66,72 @@ export function paceInsight(splits: ActivitySplit[]): string | null {
 }
 
 /**
+ * Compact per-km bars for the race list: height = pace, so the lowest bar
+ * is the fastest km (highlighted in yellow and labelled for screen readers).
+ */
+export function KmBars({ splits }: { splits: ActivitySplit[] }) {
+    const points = pacePoints(splits);
+
+    if (points.length < 2) {
+        return null;
+    }
+
+    const paces = points.map((point) => point.pace);
+    const fastestPace = Math.min(...paces);
+    const slowestPace = Math.max(...paces);
+    // Floor below the fastest pace so differences are visible.
+    const floor = fastestPace - Math.max((slowestPace - fastestPace) * 1.5, 15);
+    const labelEvery = Math.ceil(points.length / 12);
+
+    return (
+        <figure className="flex flex-col gap-2">
+            <figcaption className="flex items-baseline justify-between gap-2 text-[13px] text-muted-foreground">
+                <span>Parciales por km</span>
+                <span>barra más baja = km más rápido</span>
+            </figcaption>
+            <ol className="flex h-20 items-end gap-1" aria-label="Ritmo por km">
+                {points.map((point, index) => {
+                    const fastest = point.pace === fastestPace;
+
+                    return (
+                        <li
+                            key={index}
+                            className="flex h-full flex-1 items-end"
+                            title={`${point.label}: ${paceNumber(point.pace)} /km`}
+                        >
+                            <span className="sr-only">
+                                {point.label}: {paceNumber(point.pace)} /km
+                                {fastest && ', el más rápido'}
+                            </span>
+                            <span
+                                aria-hidden
+                                className={cn(
+                                    'w-full rounded-t-[4px]',
+                                    fastest ? 'bg-primary' : 'bg-chart-4',
+                                )}
+                                style={{
+                                    height: `${((point.pace - floor) / (slowestPace - floor)) * 100}%`,
+                                }}
+                            />
+                        </li>
+                    );
+                })}
+            </ol>
+            <div
+                className="flex gap-1 text-[11px] text-muted-foreground"
+                aria-hidden
+            >
+                {points.map((point, index) => (
+                    <span key={index} className="flex-1 text-center">
+                        {index % labelEvery === 0 ? point.short : ''}
+                    </span>
+                ))}
+            </div>
+        </figure>
+    );
+}
+
+/**
  * Pace per split. The axis is reversed: bars hang from the top, so a shorter
  * bar (higher end) is a faster split. The fastest one is highlighted.
  */

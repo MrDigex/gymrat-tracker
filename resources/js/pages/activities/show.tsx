@@ -121,39 +121,41 @@ function Actions({ activity }: { activity: Activity }) {
                     <StoryCard
                         badge={activity.type_label}
                         title={activity.name}
-                        subtitle={formatDate(activity.started_at)}
-                    >
-                        {[
-                            ['Distancia', formatKm(activity.distance_m)],
-                            ['Tiempo', activity.duration_label],
-                            ['Ritmo', formatPace(activity.pace_seconds_per_km)],
-                            ...(activity.avg_hr
-                                ? [['FC media', `${activity.avg_hr} ppm`]]
-                                : []),
-                        ].map(([label, value]) => (
-                            <div key={label}>
-                                <div
-                                    style={{
-                                        fontSize: 36,
-                                        color: '#a1a1aa',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: 4,
-                                    }}
-                                >
-                                    {label}
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 120,
-                                        fontWeight: 900,
-                                        lineHeight: 1.1,
-                                    }}
-                                >
-                                    {value}
-                                </div>
-                            </div>
-                        ))}
-                    </StoryCard>
+                        date={formatDate(activity.started_at)}
+                        stats={[
+                            {
+                                label: 'Distancia',
+                                value: formatNumber(activity.distance_km),
+                                unit: 'km',
+                            },
+                            { label: 'Tiempo', value: activity.duration_label },
+                        ]}
+                        tiles={[
+                            {
+                                label: 'Ritmo',
+                                value: paceNumber(activity.pace_seconds_per_km),
+                                unit: '/km',
+                            },
+                            {
+                                label: 'Desnivel',
+                                value:
+                                    activity.elevation_gain_m !== null
+                                        ? formatNumber(
+                                              activity.elevation_gain_m,
+                                          )
+                                        : '—',
+                                unit:
+                                    activity.elevation_gain_m !== null
+                                        ? 'm'
+                                        : undefined,
+                            },
+                            {
+                                label: 'Pulso medio',
+                                value: activity.avg_hr ?? '—',
+                                unit: activity.avg_hr ? 'ppm' : undefined,
+                            },
+                        ]}
+                    />
                 }
             />
             <Button variant="outline" className={iconButton} asChild>

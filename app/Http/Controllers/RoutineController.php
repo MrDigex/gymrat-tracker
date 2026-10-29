@@ -48,7 +48,7 @@ class RoutineController extends Controller
         return Inertia::render('routines/show', [
             'routine' => RoutineResource::make($routine)->resolve($request),
             'recentSessions' => WorkoutSessionResource::collection(
-                $routine->workoutSessions()->withCount('sets')->latest('started_at')->limit(5)->get()
+                $routine->workoutSessions()->with('sets')->withCount('sets')->latest('started_at')->limit(5)->get()
             )->resolve($request),
         ]);
     }

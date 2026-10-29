@@ -4,12 +4,17 @@ import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileCo
 import AppearanceTabs from '@/components/appearance-tabs';
 import DeleteUser from '@/components/delete-user';
 import InputError from '@/components/input-error';
-import { SettingsGroupLabel } from '@/components/settings/settings-card';
+import {
+    SettingsGroupLabel,
+    timeAgo,
+} from '@/components/settings/settings-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useInitials } from '@/hooks/use-initials';
 import { useMobileNavigation } from '@/hooks/use-mobile-navigation';
+import { formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { logout } from '@/routes';
 import { index as integrationsIndex } from '@/routes/integrations';
 import { edit } from '@/routes/profile';
@@ -21,12 +26,21 @@ type PageProps = {
     auth: Auth;
 };
 
+type SecuritySummary = {
+    password_changed_at: string | null;
+    two_factor_enabled: boolean;
+    two_factor_confirmed_at: string | null;
+    passkeys_count: number;
+};
+
 export default function Profile({
     mustVerifyEmail,
     status,
+    security,
 }: {
     mustVerifyEmail: boolean;
     status?: string;
+    security?: SecuritySummary;
 }) {
     const { auth } = usePage<PageProps>().props;
     const getInitials = useInitials();
@@ -157,17 +171,32 @@ export default function Profile({
                     <HubRow
                         href={`${editSecurity.url()}#password`}
                         title="Contraseña"
-                        subtitle="Cámbiala cuando quieras"
+                        subtitle={
+                            security?.password_changed_at
+                                ? `Cambiada ${timeAgo(security.password_changed_at)}`
+                                : 'Sin cambios registrados'
+                        }
                     />
                     <HubRow
                         href={`${editSecurity.url()}#two-factor`}
                         title="Verificación en dos pasos"
-                        subtitle="Un código extra al iniciar sesión"
+                        subtitle={
+                            security?.two_factor_enabled
+                                ? `Activada${security.two_factor_confirmed_at ? ` · desde el ${formatDate(security.two_factor_confirmed_at)}` : ''}`
+                                : 'Desactivada'
+                        }
+                        positive={security?.two_factor_enabled}
                     />
                     <HubRow
                         href={`${editSecurity.url()}#passkeys`}
                         title="Passkeys"
-                        subtitle="Entra con Face ID o la huella"
+                        subtitle={
+                            security
+                                ? security.passkeys_count === 0
+                                    ? 'Ninguna: entra con Face ID o la huella'
+                                    : `${security.passkeys_count} ${security.passkeys_count === 1 ? 'passkey' : 'passkeys'}`
+                                : 'Entra con Face ID o la huella'
+                        }
                     />
                     <HubRow
                         href={integrationsIndex.url()}
@@ -204,10 +233,12 @@ function HubRow({
     href,
     title,
     subtitle,
+    positive,
 }: {
     href: string;
     title: string;
     subtitle: string;
+    positive?: boolean;
 }) {
     return (
         <Link
@@ -216,7 +247,12 @@ function HubRow({
         >
             <span className="min-w-0 flex-1">
                 <span className="block font-bold">{title}</span>
-                <span className="block text-[13px] text-muted-foreground">
+                <span
+                    className={cn(
+                        'block text-[13px]',
+                        positive ? 'text-success' : 'text-muted-foreground',
+                    )}
+                >
                     {subtitle}
                 </span>
             </span>

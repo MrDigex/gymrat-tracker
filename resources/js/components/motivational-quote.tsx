@@ -1,20 +1,22 @@
 import { router } from '@inertiajs/react';
-import { Quote, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
 type MotivationalQuoteProps = {
     quote: { text: string; author: string | null } | null;
     quoteOffset: number;
+    /** Always stack the quote and the button (for narrow columns). */
+    stacked?: boolean;
     className?: string;
 };
 
 export default function MotivationalQuote({
     quote,
     quoteOffset,
+    stacked = false,
     className,
 }: MotivationalQuoteProps) {
     const [loading, setLoading] = useState(false);
@@ -38,36 +40,48 @@ export default function MotivationalQuote({
     };
 
     return (
-        <Card className={cn('gap-0 py-0', className)}>
-            <CardContent className="flex items-start gap-4 p-5">
-                <Quote
-                    className="mt-0.5 size-6 shrink-0 text-yellow-500 dark:text-yellow-400"
+        <section
+            aria-label="Frase del día"
+            className={cn(
+                'flex flex-col gap-4 rounded-xl border bg-card p-5',
+                !stacked && 'md:flex-row md:items-center md:gap-5 md:px-6',
+                className,
+            )}
+        >
+            <span
+                aria-hidden
+                className={cn(
+                    'h-7 shrink-0 font-num text-6xl leading-[0.85] text-primary-text',
+                    !stacked && 'md:self-start',
+                )}
+            >
+                “
+            </span>
+            <figure aria-live="polite" className="min-w-0 flex-1 space-y-1">
+                <blockquote className="text-lg leading-snug font-bold text-balance md:text-xl">
+                    {quote.text}
+                </blockquote>
+                {quote.author && (
+                    <figcaption className="text-sm text-muted-foreground">
+                        {quote.author}
+                    </figcaption>
+                )}
+            </figure>
+            <Button
+                variant="outline"
+                onClick={nextQuote}
+                disabled={loading}
+                className={cn(
+                    'h-11 self-start rounded-lg px-4 font-bold',
+                    !stacked && 'md:self-center',
+                )}
+            >
+                <RefreshCw
+                    className={cn('size-4', loading && 'animate-spin')}
                     aria-hidden
                 />
-                <figure className="min-w-0 flex-1 space-y-1">
-                    <blockquote className="text-base font-medium text-balance">
-                        “{quote.text}”
-                    </blockquote>
-                    {quote.author && (
-                        <figcaption className="text-sm text-muted-foreground">
-                            — {quote.author}
-                        </figcaption>
-                    )}
-                </figure>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={nextQuote}
-                    disabled={loading}
-                    className="shrink-0"
-                >
-                    <RefreshCw
-                        className={cn('size-4', loading && 'animate-spin')}
-                    />
-                    <span className="hidden sm:inline">Otra frase</span>
-                    <span className="sr-only sm:hidden">Otra frase</span>
-                </Button>
-            </CardContent>
-        </Card>
+                Otra frase
+            </Button>
+        </section>
     );
 }

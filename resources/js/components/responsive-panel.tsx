@@ -20,6 +20,10 @@ import { cn } from '@/lib/utils';
 
 /**
  * Bottom sheet on phones, centered dialog on larger screens.
+ *
+ * With `aside`, the desktop dialog becomes two panes: the main content
+ * (with the title) on the left and `aside` on the right. Phones ignore
+ * `aside`, so the caller decides what the sheet shows.
  */
 export function ResponsivePanel({
     open,
@@ -28,6 +32,7 @@ export function ResponsivePanel({
     title,
     description,
     children,
+    aside,
     className,
 }: {
     open: boolean;
@@ -36,6 +41,8 @@ export function ResponsivePanel({
     title: ReactNode;
     description?: ReactNode;
     children: ReactNode;
+    /** Right pane of the desktop dialog. */
+    aside?: ReactNode;
     className?: string;
 }) {
     const isMobile = useIsMobile();
@@ -69,6 +76,39 @@ export function ResponsivePanel({
         );
     }
 
+    const header = (
+        <DialogHeader className="shrink-0">
+            <DialogTitle className="font-num text-xl uppercase">
+                {title}
+            </DialogTitle>
+            {description && (
+                <DialogDescription>{description}</DialogDescription>
+            )}
+        </DialogHeader>
+    );
+
+    if (aside !== undefined) {
+        return (
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
+                <DialogContent
+                    className={cn(
+                        'grid h-[min(46rem,90dvh)] grid-cols-2 gap-0 overflow-hidden rounded-2xl bg-card p-0 shadow-float sm:max-w-[min(58rem,calc(100%-4rem))]',
+                        className,
+                    )}
+                >
+                    <div className="flex min-h-0 min-w-0 flex-col gap-3 p-6">
+                        {header}
+                        {children}
+                    </div>
+                    <div className="flex min-h-0 min-w-0 flex-col gap-4 overflow-y-auto border-l p-6">
+                        {aside}
+                    </div>
+                </DialogContent>
+            </Dialog>
+        );
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
@@ -78,14 +118,7 @@ export function ResponsivePanel({
                     className,
                 )}
             >
-                <DialogHeader className="shrink-0">
-                    <DialogTitle className="font-num text-xl uppercase">
-                        {title}
-                    </DialogTitle>
-                    {description && (
-                        <DialogDescription>{description}</DialogDescription>
-                    )}
-                </DialogHeader>
+                {header}
                 {children}
             </DialogContent>
         </Dialog>

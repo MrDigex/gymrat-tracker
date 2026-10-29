@@ -1,47 +1,35 @@
 import { Deferred, Head, Link, usePage } from '@inertiajs/react';
+import { ArrowRight, Dumbbell, Flame, Footprints, Play } from 'lucide-react';
+import type { ReactNode } from 'react';
 import {
-    ArrowDownRight,
-    ArrowRight,
-    ArrowUpRight,
-    Dumbbell,
-    Flame,
-    Footprints,
-    Minus,
-    Play,
-    Plus,
-    Trophy,
-    Weight,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+    FirstWeekChecklist,
+    OnboardingHero,
+} from '@/components/dashboard/onboarding';
+import { StatTile } from '@/components/gymrat/stat-tile';
 import MotivationalQuote from '@/components/motivational-quote';
 import {
     ChartEmpty,
-    hasRunning,
+    formatThousands,
     hasWeeklyVolume,
-    MuscleDistributionChart,
-    PaceChart,
-    PersonalRecordsTable,
-    WeeklyKmChart,
+    MuscleBars,
+    Panel,
+    RecordList,
+    strengthRecordRows,
     WeeklyVolumeChart,
 } from '@/components/stats-charts';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDateTime, formatKg, formatNumber } from '@/lib/format';
+import { useTrainHref } from '@/hooks/use-train-href';
+import { BODY_ZONES } from '@/lib/chart-colors';
+import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import { create as createActivity } from '@/routes/activities';
-import { index as routinesIndex } from '@/routes/routines';
 import { index as statsIndex } from '@/routes/stats';
 import { show as showWorkout } from '@/routes/workouts';
 import type {
     MuscleDistribution,
+    Onboarding,
     PersonalRecord,
     WeeklyRunning,
     WeeklyVolume,
@@ -75,24 +63,77 @@ type DashboardProps = {
     personalRecords?: PersonalRecord[];
     recentWorkouts: RecentWorkout[];
     routinesCount: number;
+    onboarding: Onboarding;
 };
+
+const capitalize = (text: string) =>
+    text.charAt(0).toUpperCase() + text.slice(1);
 
 function greeting(): string {
     const hour = new Date().getHours();
 
-    if (hour < 6) {
+    if (hour < 6 || hour >= 20) {
         return 'Buenas noches';
     }
 
-    if (hour < 13) {
-        return 'Buenos días';
-    }
+    return hour < 13 ? 'Buenos días' : 'Buenas tardes';
+}
 
-    if (hour < 20) {
-        return 'Buenas tardes';
-    }
+/**
+ * "Jue 29 oct".
+ */
+function shortDay(value: string): string {
+    const date = new Date(value);
+    const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'short' })
+        .format(date)
+        .replace('.', '');
+    const month = new Intl.DateTimeFormat('es-ES', { month: 'short' })
+        .format(date)
+        .replace('.', '');
 
-    return 'Buenas noches';
+    return `${capitalize(weekday)} ${date.getDate()} ${month}`;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+    return a.toDateString() === b.toDateString();
+}
+
+const kg = (value: number) => formatThousands(Math.round(value));
+
+/**
+ * Trend wording: full sentence on desktop, "vs 4 la anterior" on phones.
+ */
+function trendFor(
+    current: number,
+    previous: number,
+    format: (value: number) => string,
+    period: 'semana' | 'mes',
+) {
+    const diff = current - previous;
+    const word = diff > 0 ? 'más' : diff < 0 ? 'menos' : 'igual';
+    const long =
+        period === 'semana' ? 'que la semana pasada' : 'que el mes pasado';
+    const short = period === 'semana' ? 'la anterior' : 'el anterior';
+
+    return {
+        direction:
+            diff > 0
+                ? ('up' as const)
+                : diff < 0
+                  ? ('down' as const)
+                  : ('flat' as const),
+        text: (
+            <>
+                <span className="md:hidden">
+                    <span className="sr-only">{capitalize(word)}, </span>
+                    vs {format(previous)} {short}
+                </span>
+                <span className="hidden md:inline">
+                    {word} {long} ({format(previous)})
+                </span>
+            </>
+        ),
+    };
 }
 
 export default function Dashboard({
@@ -105,431 +146,569 @@ export default function Dashboard({
     personalRecords,
     recentWorkouts,
     routinesCount,
+    onboarding,
 }: DashboardProps) {
-    const { auth } = usePage().props;
+    const { auth, activeWorkoutId } = usePage().props;
+    const trainHref = useTrainHref();
     const firstName = auth.user.name.split(' ')[0];
+    const now = new Date();
     const isNewUser =
-        routinesCount === 0 &&
+        !onboarding.has_workout &&
         recentWorkouts.length === 0 &&
         kpis.km_this_month === 0 &&
         kpis.km_last_month === 0;
+    const showChecklist = !onboarding.has_routine || !onboarding.has_workout;
+
+    const startLabel = activeWorkoutId
+        ? 'Continuar entrenamiento'
+        : 'Empezar entrenamiento';
+    const startHint = activeWorkoutId
+        ? 'Tienes un entrenamiento en curso'
+        : routinesCount > 0
+          ? `Elige una de tus ${routinesCount} ${routinesCount === 1 ? 'rutina' : 'rutinas'} o entrena libre`
+          : 'Entrenamiento libre';
+
+    const header = (
+        <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div className="min-w-0 space-y-1">
+                <p className="text-[13px] font-bold tracking-[0.12em] text-muted-foreground uppercase md:text-sm md:font-medium md:tracking-normal md:normal-case">
+                    <span className="md:hidden">
+                        {new Intl.DateTimeFormat('es-ES', {
+                            weekday: 'long',
+                        }).format(now)}{' '}
+                        · {now.getDate()}{' '}
+                        {new Intl.DateTimeFormat('es-ES', { month: 'short' })
+                            .format(now)
+                            .replace('.', '')}
+                    </span>
+                    <span className="hidden md:inline">
+                        {capitalize(
+                            new Intl.DateTimeFormat('es-ES', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                            }).format(now),
+                        )}
+                    </span>
+                </p>
+                <h1
+                    className={cn(
+                        'font-num text-[40px] leading-[0.95] md:text-5xl',
+                        !isNewUser && 'uppercase',
+                    )}
+                >
+                    {isNewUser
+                        ? `Hola, ${firstName}`
+                        : `${greeting()}, ${firstName}`}
+                </h1>
+            </div>
+            {!isNewUser && (
+                <div className="hidden shrink-0 gap-3 md:flex">
+                    <Button
+                        asChild
+                        variant="outline"
+                        className="h-12 rounded-lg px-5 text-[15px] font-bold"
+                    >
+                        <Link href={createActivity()}>
+                            <Footprints aria-hidden />
+                            Registrar carrera
+                        </Link>
+                    </Button>
+                    <Button
+                        asChild
+                        className="h-12 rounded-lg px-5 text-[15px] font-bold"
+                    >
+                        <Link href={trainHref}>
+                            <Play className="fill-current" aria-hidden />
+                            {startLabel}
+                        </Link>
+                    </Button>
+                </div>
+            )}
+        </header>
+    );
+
+    if (isNewUser) {
+        return (
+            <>
+                <Head title="Inicio" />
+                <div className="flex flex-1 flex-col gap-5 p-4 md:gap-6 md:p-6 lg:p-8">
+                    {header}
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:items-start">
+                        <OnboardingHero
+                            onboarding={onboarding}
+                            trainHref={trainHref}
+                        />
+                        <div className="flex flex-col gap-4">
+                            <FirstWeekChecklist
+                                onboarding={onboarding}
+                                trainHref={trainHref}
+                            />
+                            <div className="grid grid-cols-2 gap-3">
+                                <StatTile
+                                    variant="empty"
+                                    label="Volumen semanal"
+                                    value="0"
+                                    unit="kg"
+                                    hint="Aparecerá tras tu primera sesión"
+                                />
+                                <StatTile
+                                    variant="empty"
+                                    label="Racha"
+                                    value="0"
+                                    unit="días"
+                                    hint="Entrena hoy para empezarla"
+                                />
+                            </div>
+                            <MotivationalQuote
+                                quote={quote}
+                                quoteOffset={quoteOffset}
+                                stacked
+                            />
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    }
+
+    const volumeSpark = weeklyVolume?.map((week) =>
+        BODY_ZONES.reduce((sum, zone) => sum + week[zone], 0),
+    );
+    const kmSpark = weeklyRunning?.map((week) => week.km);
+    const streakUnit = kpis.streak_days === 1 ? 'día' : 'días';
 
     return (
         <>
             <Head title="Inicio" />
-            <div className="flex h-full flex-1 flex-col gap-6 p-4 md:p-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            {greeting()}, {firstName}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Este es el resumen de tu entrenamiento.
-                        </p>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Button asChild>
-                            <Link href={routinesIndex()}>
-                                <Play />
-                                Empezar entrenamiento
-                            </Link>
-                        </Button>
-                        <Button asChild variant="outline">
+            <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 lg:p-8">
+                {header}
+
+                {showChecklist && (
+                    <FirstWeekChecklist
+                        onboarding={onboarding}
+                        trainHref={trainHref}
+                    />
+                )}
+
+                <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
+                    <StatTile
+                        hazard
+                        className="col-span-2 lg:col-span-1"
+                        label={
+                            <>
+                                <span className="flex items-center gap-1.5 font-num tracking-[0.08em] text-primary-text uppercase lg:hidden">
+                                    <Flame className="size-4" aria-hidden />
+                                    Racha
+                                </span>
+                                <span className="hidden lg:inline">
+                                    Racha actual
+                                </span>
+                            </>
+                        }
+                        value={formatNumber(kpis.streak_days)}
+                        unit={streakUnit}
+                        hint={
+                            kpis.streak_days > 0 ? (
+                                <span className="hidden text-primary-text lg:inline">
+                                    ¡No la rompas hoy!
+                                </span>
+                            ) : (
+                                'Entrena hoy para empezar una racha'
+                            )
+                        }
+                        aside={
+                            kpis.streak_days > 0 && (
+                                <div className="flex flex-col items-start gap-2 lg:hidden">
+                                    <p className="text-[15px] font-bold">
+                                        ¡No la rompas hoy!
+                                    </p>
+                                    <StreakWeek
+                                        streak={kpis.streak_days}
+                                        trainedToday={recentWorkouts.some(
+                                            (workout) =>
+                                                isSameDay(
+                                                    new Date(
+                                                        workout.started_at,
+                                                    ),
+                                                    now,
+                                                ),
+                                        )}
+                                    />
+                                </div>
+                            )
+                        }
+                    />
+
+                    <div className="col-span-2 flex flex-col gap-3 md:hidden">
+                        <Link
+                            href={trainHref}
+                            className="flex min-h-[72px] items-center gap-3 rounded-xl bg-primary py-3 pr-3 pl-5 text-primary-foreground shadow-xs transition-colors hover:bg-primary/90"
+                        >
+                            <span className="min-w-0 flex-1">
+                                <span className="block font-num text-xl leading-tight uppercase">
+                                    {startLabel}
+                                </span>
+                                <span className="block truncate text-[13px] font-bold">
+                                    {startHint}
+                                </span>
+                            </span>
+                            <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-primary-foreground text-primary">
+                                <Play
+                                    className="size-5 fill-current"
+                                    aria-hidden
+                                />
+                            </span>
+                        </Link>
+                        <Button
+                            asChild
+                            variant="outline"
+                            className="h-14 rounded-xl text-base font-bold"
+                        >
                             <Link href={createActivity()}>
-                                <Footprints />
+                                <Footprints aria-hidden />
                                 Registrar carrera
                             </Link>
                         </Button>
                     </div>
+
+                    <StatTile
+                        label={
+                            <>
+                                <span className="md:hidden">
+                                    Entrenos semana
+                                </span>
+                                <span className="hidden md:inline">
+                                    Entrenamientos esta semana
+                                </span>
+                            </>
+                        }
+                        value={formatNumber(kpis.workouts_this_week)}
+                        trend={trendFor(
+                            kpis.workouts_this_week,
+                            kpis.workouts_last_week,
+                            formatNumber,
+                            'semana',
+                        )}
+                    />
+                    <StatTile
+                        label={
+                            <>
+                                <span className="md:hidden">Km este mes</span>
+                                <span className="hidden md:inline">
+                                    Kilómetros este mes
+                                </span>
+                            </>
+                        }
+                        value={formatNumber(kpis.km_this_month)}
+                        unit="km"
+                        trend={trendFor(
+                            kpis.km_this_month,
+                            kpis.km_last_month,
+                            (value) => `${formatNumber(value)} km`,
+                            'mes',
+                        )}
+                        spark={
+                            kmSpark?.some((value) => value > 0)
+                                ? kmSpark
+                                : undefined
+                        }
+                        sparkLabel="Kilómetros por semana, últimas 8 semanas"
+                        sparkClassName="max-md:hidden lg:hidden"
+                        className="lg:order-last"
+                    />
+                    <StatTile
+                        className="col-span-2 lg:col-span-1"
+                        label="Volumen esta semana"
+                        value={kg(kpis.volume_this_week)}
+                        unit="kg"
+                        trend={trendFor(
+                            kpis.volume_this_week,
+                            kpis.volume_last_week,
+                            (value) => `${kg(value)} kg`,
+                            'semana',
+                        )}
+                        spark={
+                            volumeSpark?.some((value) => value > 0)
+                                ? volumeSpark
+                                : undefined
+                        }
+                        sparkLabel="Volumen por semana, últimas 8 semanas"
+                        sparkClassName="lg:hidden"
+                    />
                 </div>
 
                 <MotivationalQuote quote={quote} quoteOffset={quoteOffset} />
 
-                {isNewUser && <WelcomeCard />}
-
-                <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                    <KpiTile
-                        icon={Dumbbell}
-                        label="Entrenamientos esta semana"
-                        value={formatNumber(kpis.workouts_this_week)}
-                        current={kpis.workouts_this_week}
-                        previous={kpis.workouts_last_week}
-                        previousLabel="la semana pasada"
-                        formatPrevious={formatNumber}
-                    />
-                    <KpiTile
-                        icon={Weight}
-                        label="Volumen esta semana"
-                        value={formatKg(Math.round(kpis.volume_this_week))}
-                        current={kpis.volume_this_week}
-                        previous={kpis.volume_last_week}
-                        previousLabel="la semana pasada"
-                        formatPrevious={(value) => formatKg(Math.round(value))}
-                    />
-                    <KpiTile
-                        icon={Footprints}
-                        label="Kilómetros este mes"
-                        value={`${formatNumber(kpis.km_this_month)} km`}
-                        current={kpis.km_this_month}
-                        previous={kpis.km_last_month}
-                        previousLabel="el mes pasado"
-                        formatPrevious={(value) => `${formatNumber(value)} km`}
-                    />
-                    <KpiTile
-                        icon={Flame}
-                        label="Racha actual"
-                        value={`${kpis.streak_days} ${kpis.streak_days === 1 ? 'día' : 'días'}`}
-                        hint={
-                            kpis.streak_days > 0
-                                ? '¡No la rompas hoy!'
-                                : 'Entrena hoy para empezar una racha'
-                        }
-                    />
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Volumen semanal por zona</CardTitle>
-                            <CardDescription>
-                                Kilos levantados (peso × reps) en las últimas 8
-                                semanas
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Deferred
-                                data="weeklyVolume"
-                                fallback={<ChartSkeleton />}
-                            >
-                                {weeklyVolume &&
-                                hasWeeklyVolume(weeklyVolume) ? (
-                                    <WeeklyVolumeChart data={weeklyVolume} />
-                                ) : (
-                                    <ChartEmpty>
-                                        <Dumbbell className="size-6" />
-                                        Aún no hay series con peso registradas.
-                                        Completa un entrenamiento para ver tu
-                                        volumen.
-                                    </ChartEmpty>
-                                )}
-                            </Deferred>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Series por músculo</CardTitle>
-                            <CardDescription>
-                                Series efectivas de los últimos 30 días
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <Deferred
-                                data="muscleDistribution"
-                                fallback={<ChartSkeleton />}
-                            >
-                                {muscleDistribution &&
-                                muscleDistribution.length > 0 ? (
-                                    <MuscleDistributionChart
-                                        data={muscleDistribution}
-                                        limit={8}
-                                    />
-                                ) : (
-                                    <ChartEmpty>
-                                        <Dumbbell className="size-6" />
-                                        Aquí verás qué músculos trabajas más.
-                                    </ChartEmpty>
-                                )}
-                            </Deferred>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <Deferred
-                    data="weeklyRunning"
-                    fallback={
-                        <div className="grid gap-4 xl:grid-cols-2">
-                            <Card>
-                                <CardContent>
-                                    <ChartSkeleton />
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardContent>
-                                    <ChartSkeleton />
-                                </CardContent>
-                            </Card>
-                        </div>
-                    }
-                >
-                    <RunningSection data={weeklyRunning ?? []} />
-                </Deferred>
-
-                <div className="grid gap-4 xl:grid-cols-2">
-                    <Card>
-                        <CardHeader className="flex flex-row items-start justify-between gap-2">
-                            <div className="space-y-1.5">
-                                <CardTitle className="flex items-center gap-2">
-                                    <Trophy className="size-4 text-yellow-500 dark:text-yellow-400" />
-                                    Récords personales
-                                </CardTitle>
-                                <CardDescription>
-                                    Tus mejores marcas más recientes
-                                </CardDescription>
-                            </div>
-                            <Button asChild variant="ghost" size="sm">
-                                <Link href={statsIndex()}>
-                                    Ver todo
-                                    <ArrowRight />
-                                </Link>
-                            </Button>
-                        </CardHeader>
-                        <CardContent>
-                            <Deferred
-                                data="personalRecords"
-                                fallback={<TableSkeleton />}
-                            >
-                                {personalRecords &&
-                                personalRecords.length > 0 ? (
-                                    <PersonalRecordsTable
-                                        records={personalRecords}
-                                    />
-                                ) : (
-                                    <ChartEmpty className="min-h-32">
-                                        <Trophy className="size-6" />
-                                        Tus récords aparecerán cuando registres
-                                        series con peso.
-                                    </ChartEmpty>
-                                )}
-                            </Deferred>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Últimos entrenamientos</CardTitle>
-                            <CardDescription>
-                                Tus sesiones más recientes
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {recentWorkouts.length > 0 ? (
-                                <ul className="divide-y">
-                                    {recentWorkouts.map((workout) => (
-                                        <li key={workout.id}>
-                                            <Link
-                                                href={showWorkout(workout.id)}
-                                                className="-mx-2 flex items-center gap-3 rounded-md px-2 py-3 transition-colors hover:bg-muted/60"
-                                            >
-                                                <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
-                                                    <Dumbbell className="size-4" />
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate font-medium">
-                                                        {workout.name}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {formatDateTime(
-                                                            workout.started_at,
-                                                        )}
-                                                    </p>
-                                                </div>
-                                                <div className="text-right text-sm tabular-nums">
-                                                    <p>
-                                                        {workout.sets}{' '}
-                                                        {workout.sets === 1
-                                                            ? 'serie'
-                                                            : 'series'}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {formatKg(
-                                                            workout.volume_kg,
-                                                        )}
-                                                    </p>
-                                                </div>
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
+                <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+                    <Panel
+                        title="Volumen semanal por zona"
+                        caption="Toneladas levantadas, últimas 8 semanas"
+                    >
+                        <Deferred
+                            data="weeklyVolume"
+                            fallback={<Skeleton className="h-64 w-full" />}
+                        >
+                            {weeklyVolume && hasWeeklyVolume(weeklyVolume) ? (
+                                <WeeklyVolumeChart data={weeklyVolume} />
                             ) : (
-                                <ChartEmpty className="min-h-32">
-                                    <Dumbbell className="size-6" />
-                                    Todavía no has registrado entrenamientos.
-                                    <Button asChild size="sm" variant="outline">
-                                        <Link href={routinesIndex()}>
-                                            {routinesCount > 0
-                                                ? 'Elegir una rutina'
-                                                : 'Crear mi primera rutina'}
-                                        </Link>
-                                    </Button>
+                                <ChartEmpty>
+                                    <Dumbbell className="size-6" aria-hidden />
+                                    Aún no hay series con peso registradas.
+                                    Completa un entrenamiento para ver tu
+                                    volumen.
                                 </ChartEmpty>
                             )}
-                        </CardContent>
-                    </Card>
+                        </Deferred>
+                    </Panel>
+
+                    <Panel title="Series por músculo" caption="Últimos 30 días">
+                        <Deferred
+                            data="muscleDistribution"
+                            fallback={<RowsSkeleton rows={8} height="h-6" />}
+                        >
+                            {muscleDistribution &&
+                            muscleDistribution.length > 0 ? (
+                                <MuscleBars data={muscleDistribution} />
+                            ) : (
+                                <ChartEmpty>
+                                    <Dumbbell className="size-6" aria-hidden />
+                                    Aquí verás qué músculos trabajas más.
+                                </ChartEmpty>
+                            )}
+                        </Deferred>
+                    </Panel>
+                </div>
+
+                <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+                    <Panel title="Últimos entrenamientos">
+                        <RecentWorkouts
+                            workouts={recentWorkouts}
+                            trainHref={trainHref}
+                        />
+                    </Panel>
+
+                    <Panel
+                        title="Récords personales"
+                        action={
+                            <Link
+                                href={statsIndex()}
+                                className="ml-auto inline-flex min-h-11 items-center gap-1 rounded-sm text-sm font-bold text-primary-text hover:underline"
+                            >
+                                Ver todo
+                                <ArrowRight className="size-4" aria-hidden />
+                            </Link>
+                        }
+                        className="gap-1"
+                    >
+                        <Deferred
+                            data="personalRecords"
+                            fallback={<RowsSkeleton rows={5} height="h-10" />}
+                        >
+                            {personalRecords && personalRecords.length > 0 ? (
+                                <RecordList
+                                    rows={strengthRecordRows(personalRecords, {
+                                        withDetail: false,
+                                    })}
+                                />
+                            ) : (
+                                <ChartEmpty className="min-h-32">
+                                    Tus récords aparecerán cuando registres
+                                    series con peso.
+                                </ChartEmpty>
+                            )}
+                        </Deferred>
+                    </Panel>
                 </div>
             </div>
         </>
     );
 }
 
-function KpiTile({
-    icon: Icon,
-    label,
-    value,
-    current,
-    previous,
-    previousLabel,
-    formatPrevious,
-    hint,
+/**
+ * Monday-to-Sunday strip with the streak days filled in. The streak ends today
+ * when there is a workout today, otherwise yesterday (same rule as the backend).
+ */
+function StreakWeek({
+    streak,
+    trainedToday,
 }: {
-    icon: LucideIcon;
-    label: string;
-    value: string;
-    current?: number;
-    previous?: number;
-    previousLabel?: string;
-    formatPrevious?: (value: number) => string;
-    hint?: string;
+    streak: number;
+    trainedToday: boolean;
 }) {
-    const hasTrend =
-        current !== undefined && previous !== undefined && formatPrevious;
-    const diff = hasTrend ? current - previous : 0;
-    const TrendIcon =
-        diff > 0 ? ArrowUpRight : diff < 0 ? ArrowDownRight : Minus;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const end = new Date(today);
 
-    return (
-        <Card className="gap-2 py-4">
-            <CardHeader className="px-4">
-                <CardDescription className="flex items-center gap-2">
-                    <Icon className="size-4" />
-                    {label}
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1 px-4">
-                <p className="text-2xl font-semibold tracking-tight tabular-nums">
-                    {value}
-                </p>
-                {hasTrend ? (
-                    <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <TrendIcon
-                            className={cn(
-                                'size-3.5',
-                                diff > 0 &&
-                                    'text-emerald-600 dark:text-emerald-400',
-                                diff < 0 &&
-                                    'text-orange-600 dark:text-orange-400',
-                            )}
-                            aria-hidden
-                        />
-                        <span>
-                            {diff === 0
-                                ? 'Igual que '
-                                : diff > 0
-                                  ? 'Más que '
-                                  : 'Menos que '}
-                            {previousLabel} ({formatPrevious(previous)})
-                        </span>
-                    </p>
-                ) : (
-                    hint && (
-                        <p className="text-xs text-muted-foreground">{hint}</p>
-                    )
-                )}
-            </CardContent>
-        </Card>
-    );
-}
-
-function RunningSection({ data }: { data: WeeklyRunning[] }) {
-    if (!hasRunning(data)) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Carreras</CardTitle>
-                    <CardDescription>
-                        Kilómetros y ritmo de las últimas 8 semanas
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <ChartEmpty className="min-h-32">
-                        <Footprints className="size-6" />
-                        Sin carreras registradas en las últimas semanas.
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={createActivity()}>
-                                <Plus />
-                                Registrar carrera
-                            </Link>
-                        </Button>
-                    </ChartEmpty>
-                </CardContent>
-            </Card>
-        );
+    if (!trainedToday) {
+        end.setDate(end.getDate() - 1);
     }
 
+    const start = new Date(end);
+    start.setDate(end.getDate() - streak + 1);
+    const labels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+    const names = [
+        'lunes',
+        'martes',
+        'miércoles',
+        'jueves',
+        'viernes',
+        'sábado',
+        'domingo',
+    ];
+    const days = labels.map((label, index) => {
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + index);
+
+        return {
+            label,
+            name: names[index],
+            active: day >= start && day <= end,
+            today: day.getTime() === today.getTime(),
+        };
+    });
+    const active = days.filter((day) => day.active).map((day) => day.name);
+
     return (
-        <div className="grid gap-4 xl:grid-cols-2">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Kilómetros por semana</CardTitle>
-                    <CardDescription>Últimas 8 semanas</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <WeeklyKmChart data={data} />
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Ritmo medio</CardTitle>
-                    <CardDescription>
-                        Minutos por kilómetro (más arriba, más rápido)
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <PaceChart data={data} />
-                </CardContent>
-            </Card>
+        <div
+            role="img"
+            aria-label={
+                active.length > 0
+                    ? `Esta semana has entrenado: ${active.join(', ')}`
+                    : 'Esta semana aún no has entrenado'
+            }
+            className="grid grid-cols-7 gap-1"
+        >
+            {days.map((day) => (
+                <div
+                    key={day.label}
+                    className="flex flex-col items-center gap-1"
+                >
+                    <span
+                        className={cn(
+                            'h-6 w-6 rounded-[6px] sm:w-7',
+                            day.active ? 'bg-primary' : 'bg-muted',
+                            day.today &&
+                                !day.active &&
+                                'border-2 border-primary bg-transparent',
+                        )}
+                    />
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                        {day.label}
+                    </span>
+                </div>
+            ))}
         </div>
     );
 }
 
-function WelcomeCard() {
+function RecentWorkouts({
+    workouts,
+    trainHref,
+}: {
+    workouts: RecentWorkout[];
+    trainHref: string;
+}): ReactNode {
+    if (workouts.length === 0) {
+        return (
+            <ChartEmpty className="min-h-32">
+                Todavía no has registrado entrenamientos.
+                <Button asChild variant="outline" className="h-11 font-bold">
+                    <Link href={trainHref}>Empezar ahora</Link>
+                </Button>
+            </ChartEmpty>
+        );
+    }
+
     return (
-        <Card className="border-yellow-400/50 bg-yellow-400/5">
-            <CardHeader>
-                <CardTitle>¡Bienvenido a GymRat Tracker!</CardTitle>
-                <CardDescription>
-                    Empieza creando tu primera rutina: elige ejercicios del
-                    catálogo y te sugeriremos peso y repeticiones en cada sesión
-                    para que sigas progresando.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-                <Button asChild>
-                    <Link href={routinesIndex()}>
-                        <Plus />
-                        Crear mi primera rutina
-                    </Link>
-                </Button>
-                <Button asChild variant="outline">
-                    <Link href={createActivity()}>
-                        <Footprints />
-                        Registrar una carrera
-                    </Link>
-                </Button>
-            </CardContent>
-        </Card>
+        <>
+            <ul className="divide-y md:hidden">
+                {workouts.map((workout) => {
+                    const date = new Date(workout.started_at);
+
+                    return (
+                        <li key={workout.id}>
+                            <Link
+                                href={showWorkout(workout.id)}
+                                className="-mx-2 flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/60"
+                            >
+                                <span className="flex size-12 shrink-0 flex-col items-center justify-center rounded-lg bg-muted leading-none">
+                                    <span className="font-num text-lg">
+                                        {date.getDate()}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">
+                                        {new Intl.DateTimeFormat('es-ES', {
+                                            month: 'short',
+                                        })
+                                            .format(date)
+                                            .replace('.', '')}
+                                    </span>
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate font-bold">
+                                        {workout.name}
+                                    </span>
+                                    <span className="block text-[13px] text-muted-foreground">
+                                        {workout.sets}{' '}
+                                        {workout.sets === 1
+                                            ? 'serie'
+                                            : 'series'}{' '}
+                                        · {formatThousands(workout.volume_kg)}{' '}
+                                        kg
+                                    </span>
+                                </span>
+                            </Link>
+                        </li>
+                    );
+                })}
+            </ul>
+            <table className="hidden w-full text-sm md:table">
+                <thead>
+                    <tr className="border-b text-left text-[13px] text-muted-foreground">
+                        <th className="pb-2 font-medium">Fecha</th>
+                        <th className="pb-2 font-medium">Rutina</th>
+                        <th className="pb-2 text-right font-medium">Series</th>
+                        <th className="pb-2 text-right font-medium">Volumen</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y">
+                    {workouts.map((workout) => (
+                        <tr
+                            key={workout.id}
+                            className="transition-colors hover:bg-muted/40"
+                        >
+                            <td className="py-3.5 whitespace-nowrap">
+                                {shortDay(workout.started_at)}
+                            </td>
+                            <td className="max-w-40 truncate py-3.5 font-bold">
+                                <Link
+                                    href={showWorkout(workout.id)}
+                                    className="rounded-sm hover:underline"
+                                >
+                                    {workout.name}
+                                </Link>
+                            </td>
+                            <td className="py-3.5 text-right font-num">
+                                {workout.sets}
+                            </td>
+                            <td className="py-3.5 text-right font-num whitespace-nowrap">
+                                {formatThousands(workout.volume_kg)} kg
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </>
     );
 }
 
-function ChartSkeleton() {
-    return <Skeleton className="h-64 w-full" />;
-}
-
-function TableSkeleton() {
+function RowsSkeleton({ rows, height }: { rows: number; height: string }) {
     return (
-        <div className="space-y-2">
-            {Array.from({ length: 4 }, (_, index) => (
-                <Skeleton key={index} className="h-8 w-full" />
+        <div className="space-y-2.5">
+            {Array.from({ length: rows }, (_, index) => (
+                <Skeleton key={index} className={cn('w-full', height)} />
             ))}
         </div>
     );
