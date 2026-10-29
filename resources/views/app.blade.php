@@ -30,9 +30,10 @@
             }
         </style>
 
-        <link rel="icon" href="/favicon.ico" sizes="any">
-        <link rel="icon" href="/images/logo/favicon-32.png" type="image/png" sizes="32x32">
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+        {{-- Versioned so browsers and the CDN don't keep a previously cached icon --}}
+        <link rel="icon" href="/favicon.ico?v=2" sizes="any">
+        <link rel="icon" href="/images/logo/favicon-32.png?v=2" type="image/png" sizes="32x32">
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
 
         @isset($openGraph)
             <meta name="description" content="{{ $openGraph['description'] }}">
