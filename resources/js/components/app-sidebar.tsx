@@ -29,7 +29,7 @@ import stats from '@/routes/stats';
 import workouts from '@/routes/workouts';
 import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+export const mainNavItems: NavItem[] = [
     {
         title: 'Inicio',
         href: dashboard(),
@@ -62,7 +62,7 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
-const footerNavItems: NavItem[] = [
+export const footerNavItems: NavItem[] = [
     {
         title: 'Integraciones',
         href: integrations.index(),

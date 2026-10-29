@@ -8,12 +8,14 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 /**
  * @property int $id
  * @property string $name
  * @property string $slug
  * @property BodyZone $body_zone
+ * @property-read Pivot&object{is_primary: bool} $pivot
  */
 #[Fillable(['name', 'slug', 'body_zone'])]
 class MuscleGroup extends Model

@@ -21,7 +21,7 @@ class WorkoutSessionResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name ?? $this->routine?->name ?? 'Entrenamiento libre',
+            'name' => $this->name ?? $this->routine->name ?? 'Entrenamiento libre',
             'routine_id' => $this->routine_id,
             'started_at' => $this->started_at->toIso8601String(),
             'finished_at' => $this->finished_at?->toIso8601String(),

@@ -6,7 +6,7 @@ use App\Enums\BodyZone;
 use App\Models\Exercise;
 use App\Services\StatsService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,13 +22,13 @@ class StatsController extends Controller
         ]);
 
         $user = $request->user();
-        $from = Carbon::parse($filters['from'] ?? now()->subWeeks(11)->startOfWeek())->startOfDay();
-        $to = Carbon::parse($filters['to'] ?? now())->endOfDay();
+        $from = Date::parse($filters['from'] ?? now()->subWeeks(11)->startOfWeek())->startOfDay();
+        $to = Date::parse($filters['to'] ?? now())->endOfDay();
         $zone = BodyZone::tryFrom($filters['zone'] ?? '');
 
         $loggedExercises = $stats->loggedExercises($user);
         $exerciseId = $filters['exercise'] ?? ($loggedExercises[0]['id'] ?? null);
-        $exercise = $exerciseId ? Exercise::query()->visibleTo($user)->find($exerciseId) : null;
+        $exercise = $exerciseId ? Exercise::query()->visibleTo($user)->whereKey($exerciseId)->first() : null;
 
         return Inertia::render('stats/index', [
             'filters' => [

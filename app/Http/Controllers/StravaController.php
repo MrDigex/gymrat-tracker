@@ -62,7 +62,7 @@ class StravaController extends Controller
         $account = $request->user()->stravaAccount;
         abort_unless($account !== null, 404);
 
-        $runs = collect($strava->activitiesSince($account, now()->subDays(30)->timestamp))->filter(fn (array $activity) => $mapper->isRun($activity));
+        $runs = collect($strava->activitiesSince($account, now()->subDays(30)->getTimestamp()))->filter(fn (array $activity) => $mapper->isRun($activity));
 
         $runs->each(fn (array $activity) => ImportStravaActivity::dispatch($account, (int) $activity['id']));
 

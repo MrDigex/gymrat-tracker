@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSet;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
@@ -39,7 +40,7 @@ class ProgressionSuggester
 
         /** @var Collection<int, WorkoutSet> $lastSets */
         $lastSets = $history->first();
-        $sets = $target?->target_sets ?? max($lastSets->count(), 1);
+        $sets = $target->target_sets ?? max($lastSets->count(), 1);
         $lastPerformedAt = $lastSets->first()?->workoutSession?->started_at?->toDateString();
 
         $usesWeight = $exercise->tracking_type === TrackingType::WeightReps && $lastSets->max('weight_kg') > 0;
@@ -55,7 +56,7 @@ class ProgressionSuggester
     /**
      * Working sets of the last sessions in which the exercise was performed, newest first.
      *
-     * @return Collection<int, Collection<int, WorkoutSet>>
+     * @return Collection<int, EloquentCollection<int, WorkoutSet>>
      */
     private function recentSets(User $user, Exercise $exercise, ?int $excludeSessionId): Collection
     {
@@ -84,10 +85,10 @@ class ProgressionSuggester
         return new Suggestion(
             reason: SuggestionReason::FirstTime,
             message: $message,
-            sets: $target?->target_sets ?? self::DEFAULT_SETS,
+            sets: $target->target_sets ?? self::DEFAULT_SETS,
             reps: $exercise->tracking_type === TrackingType::WeightReps || $exercise->tracking_type === TrackingType::Reps ? 10 : null,
-            repsMin: $target?->target_reps_min ?? self::DEFAULT_REPS_MIN,
-            repsMax: $target?->target_reps_max ?? self::DEFAULT_REPS_MAX,
+            repsMin: $target->target_reps_min ?? self::DEFAULT_REPS_MIN,
+            repsMax: $target->target_reps_max ?? self::DEFAULT_REPS_MAX,
             weightKg: $target?->target_weight_kg,
             durationSeconds: $exercise->tracking_type === TrackingType::Time ? 30 : null,
             distanceM: $target?->target_distance_m,
@@ -95,12 +96,12 @@ class ProgressionSuggester
     }
 
     /**
-     * @param  Collection<int, Collection<int, WorkoutSet>>  $history
+     * @param  Collection<int, EloquentCollection<int, WorkoutSet>>  $history
      */
     private function forWeightAndReps(Exercise $exercise, Collection $history, int $sets, ?RoutineExercise $target, ?string $lastPerformedAt): Suggestion
     {
-        $repsMin = $target?->target_reps_min ?? self::DEFAULT_REPS_MIN;
-        $repsMax = max($target?->target_reps_max ?? self::DEFAULT_REPS_MAX, $repsMin);
+        $repsMin = $target->target_reps_min ?? self::DEFAULT_REPS_MIN;
+        $repsMax = max($target->target_reps_max ?? self::DEFAULT_REPS_MAX, $repsMin);
 
         /** @var Collection<int, WorkoutSet> $lastSets */
         $lastSets = $history->first();
@@ -144,7 +145,7 @@ class ProgressionSuggester
     /**
      * True when the best estimated 1RM dropped in each of the last two sessions.
      *
-     * @param  Collection<int, Collection<int, WorkoutSet>>  $history
+     * @param  Collection<int, EloquentCollection<int, WorkoutSet>>  $history
      */
     private function isRegressing(Collection $history): bool
     {
@@ -239,9 +240,12 @@ class ProgressionSuggester
         return $exercise->isLowerBody() && $exercise->mechanic !== 'isolation' ? 5.0 : 2.5;
     }
 
+    /**
+     * Round to loads that can actually be built: 2.5 kg steps for heavier loads, 0.5 kg for light ones.
+     */
     public static function roundToPlate(float $weight): float
     {
-        return round($weight * 2) / 2;
+        return $weight >= 20 ? round($weight / 2.5) * 2.5 : round($weight * 2) / 2;
     }
 
     public static function formatKg(float $weight): string

@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
+/**
+ * @phpstan-type ExerciseData array{id: string, name: string, force: string|null, level: string, mechanic: string|null, equipment: string|null, primaryMuscles: list<string>, secondaryMuscles: list<string>, instructions: list<string>, category: string, images?: list<string>}
+ */
 #[Signature('exercises:import {--skip-images : Do not download exercise images} {--source= : Local path to exercises.json instead of downloading it}')]
 #[Description('Import the free-exercise-db catalog with Spanish translations and images')]
 class ImportExercises extends Command
@@ -55,7 +58,7 @@ class ImportExercises extends Command
     }
 
     /**
-     * @return list<array<string, mixed>>|null
+     * @return list<ExerciseData>|null
      */
     private function loadDataset(): ?array
     {
@@ -74,12 +77,15 @@ class ImportExercises extends Command
     private function loadTranslations(): array
     {
         return collect(File::glob(database_path('data/exercises_es/*.json')))
-            ->flatMap(fn (string $file) => json_decode(File::get($file), true) ?? [])
+            ->flatMap(
+                /** @return array<string, array{name: string, instructions: list<string>}> */
+                fn (string $file): array => json_decode(File::get($file), true) ?? []
+            )
             ->all();
     }
 
     /**
-     * @param  array<string, mixed>  $data
+     * @param  ExerciseData  $data
      * @param  array{name: string, instructions: list<string>}|null  $translation
      * @param  array<string, int>  $muscleGroupIds
      */
@@ -100,7 +106,7 @@ class ImportExercises extends Command
                 'level' => $data['level'],
                 'mechanic' => $data['mechanic'],
                 'tracking_type' => ExerciseTranslations::trackingType($category, $data['equipment'], $data['force']),
-                ...($images === [] ? [] : ['image_path' => $images[0] ?? null, 'image_alt_path' => $images[1] ?? null]),
+                ...($images === [] ? [] : ['image_path' => $images[0], 'image_alt_path' => $images[1] ?? null]),
             ],
         );
 
@@ -122,7 +128,7 @@ class ImportExercises extends Command
     {
         $disk = Storage::disk('public');
 
-        return collect($images)->take(2)->map(function (string $image) use ($disk, $id): ?string {
+        return array_values(collect($images)->take(2)->map(function (string $image) use ($disk, $id): ?string {
             $path = 'exercises/'.Str::slug($id).'/'.basename($image);
 
             if (! $disk->exists($path)) {
@@ -136,6 +142,6 @@ class ImportExercises extends Command
             }
 
             return $path;
-        })->filter()->values()->all();
+        })->filter()->all());
     }
 }

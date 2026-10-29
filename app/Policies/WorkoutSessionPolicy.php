@@ -2,8 +2,8 @@
 
 namespace App\Policies;
 
-use App\Models\WorkoutSession;
 use App\Models\User;
+use App\Models\WorkoutSession;
 
 class WorkoutSessionPolicy
 {

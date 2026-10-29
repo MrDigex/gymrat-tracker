@@ -4,6 +4,7 @@ namespace App\Services\Strava;
 
 use App\Enums\ActivitySource;
 use App\Enums\ActivityType;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
 /**
@@ -63,10 +64,10 @@ class StravaActivityMapper
             return null;
         }
 
-        return collect($payload['splits_metric'])->map(fn (array $split, int $index) => [
+        return array_values(collect(Arr::array($payload, 'splits_metric'))->map(fn (array $split, int $index) => [
             'label' => 'Km '.($split['split'] ?? $index + 1),
             'distance_m' => (int) round($split['distance']),
             'duration_seconds' => (int) ($split['moving_time'] ?? $split['elapsed_time']),
-        ])->filter(fn (array $split) => $split['distance_m'] > 0 && $split['duration_seconds'] > 0)->values()->all();
+        ])->filter(fn (array $split) => $split['distance_m'] > 0 && $split['duration_seconds'] > 0)->all());
     }
 }

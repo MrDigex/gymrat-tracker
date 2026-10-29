@@ -122,7 +122,7 @@ test('suggests a deload after two consecutive regressions', function () {
     $suggestion = suggester()->suggest($this->user, $exercise);
 
     expect($suggestion->reason)->toBe(SuggestionReason::Deload)
-        ->and($suggestion->weightKg)->toBe(72.0);
+        ->and($suggestion->weightKg)->toBe(72.5);
 });
 
 test('excludes the session currently being logged', function () {

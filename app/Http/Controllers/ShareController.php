@@ -14,6 +14,7 @@ use App\Models\RoutineExercise;
 use App\Models\WorkoutSession;
 use App\Services\OgImageGenerator;
 use App\Services\Progression\ProgressionSuggester;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\View;
@@ -44,7 +45,7 @@ class ShareController extends Controller
             'routine-'.$routine->id.'-'.$routine->updated_at?->timestamp,
             'Rutina',
             $routine->name,
-            $routine->routineExercises->map(fn (RoutineExercise $item) => $item->exercise->name.' · '.$this->targetLabel($item))->all(),
+            array_values($routine->routineExercises->map(fn (RoutineExercise $item) => $item->exercise->name.' · '.$this->targetLabel($item))->all()),
             $routine->user->name.' · '.config('app.name'),
         ));
     }
@@ -58,23 +59,23 @@ class ShareController extends Controller
             'session' => WorkoutSessionResource::make($workout)->resolve($request),
             'exercises' => ExerciseResource::collection($exercises)->resolve($request),
             'author' => $workout->user->name,
-        ], ($workout->name ?? 'Entrenamiento').' · '.$workout->started_at->locale('es')->isoFormat('D MMM YYYY'), 'Entrenamiento de '.$workout->user->name, route('share.workout.image', $token));
+        ], ($workout->name ?? 'Entrenamiento').' · '.$this->formatDate($workout->started_at), 'Entrenamiento de '.$workout->user->name, route('share.workout.image', $token));
     }
 
     public function workoutImage(string $token, OgImageGenerator $generator): HttpResponse
     {
         $workout = WorkoutSession::query()->where('share_token', $token)->with(['sets.exercise', 'user:id,name'])->firstOrFail();
 
-        $lines = $workout->sets->where('is_warmup', false)->groupBy('exercise_id')
+        $lines = array_values($workout->sets->where('is_warmup', false)->groupBy('exercise_id')
             ->map(fn (Collection $sets) => $sets->first()->exercise->name.' · '.$sets->count().' series'.($sets->max('weight_kg') ? ' · '.ProgressionSuggester::formatKg((float) $sets->max('weight_kg')) : ''))
-            ->values()->all();
+            ->all());
 
         return $this->png($generator->render(
             'workout-'.$workout->id.'-'.$workout->updated_at?->timestamp,
             'Entrenamiento',
             $workout->name ?? 'Entrenamiento',
             $lines,
-            $workout->user->name.' · '.$workout->started_at->locale('es')->isoFormat('D MMM YYYY'),
+            $workout->user->name.' · '.$this->formatDate($workout->started_at),
         ));
     }
 
@@ -96,13 +97,13 @@ class ShareController extends Controller
             'activity-'.$activity->id.'-'.$activity->updated_at?->timestamp,
             $activity->type->label(),
             $activity->name,
-            array_values(array_filter([
+            array_filter([
                 'Distancia: '.number_format($activity->distance_m / 1000, 2, ',', '.').' km',
                 'Tiempo: '.Activity::formatDuration($activity->duration_seconds),
                 'Ritmo: '.Activity::formatPace($activity->pace_seconds_per_km),
                 $activity->avg_hr ? 'FC media: '.$activity->avg_hr.' ppm' : null,
-            ])),
-            $activity->user->name.' · '.$activity->started_at->locale('es')->isoFormat('D MMM YYYY'),
+            ]),
+            $activity->user->name.' · '.$this->formatDate($activity->started_at),
         ));
     }
 
@@ -136,6 +137,11 @@ class ShareController extends Controller
             default => $item->target_sets.' × '.collect([$item->target_reps_min, $item->target_reps_max])->filter()->unique()->implode('-')
                 .($item->target_weight_kg ? ' · '.ProgressionSuggester::formatKg($item->target_weight_kg) : ''),
         };
+    }
+
+    private function formatDate(CarbonInterface $date): string
+    {
+        return $date->locale('es')->isoFormat('D MMM YYYY');
     }
 
     private function png(string $contents): HttpResponse

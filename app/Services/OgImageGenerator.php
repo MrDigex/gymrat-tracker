@@ -45,7 +45,7 @@ class OgImageGenerator
         $image = ImageManager::usingDriver(Driver::class)->createImage(self::WIDTH, self::HEIGHT)->fill(self::BACKGROUND);
 
         $image->drawRectangle(fn (RectangleFactory $rectangle) => $rectangle->size(self::WIDTH, 14)->at(0, 0)->background(self::ACCENT));
-        $image->drawRectangle(fn (RectangleFactory $rectangle) => $rectangle->size(24 + mb_strlen($badge) * 17, 50)->at(70, 70)->background(self::ACCENT));
+        $image->drawRectangle(fn (RectangleFactory $rectangle) => $rectangle->size(36 + mb_strlen($badge) * 18, 50)->at(70, 70)->background(self::ACCENT));
         $image->text(Str::upper($badge), 82, 106, fn (FontFactory $f) => $f->filename($font)->size(26)->color(self::BACKGROUND));
 
         $image->text(Str::limit($title, 60), 70, 200, fn (FontFactory $f) => $f->filename($font)->size(64)->color(self::TEXT)->wrap(1060)->lineHeight(1.5)->align('left', 'top'));

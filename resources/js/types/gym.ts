@@ -201,6 +201,8 @@ export type WeeklyRunning = {
 
 export type ExerciseProgressPoint = {
     date: string;
+    session_id?: number;
+    best_distance_m?: number | null;
     max_weight_kg: number | null;
     max_reps: number | null;
     total_reps: number;

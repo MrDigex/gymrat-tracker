@@ -2,21 +2,21 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\WorkoutSessionFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $user_id
  * @property int|null $routine_id
  * @property string|null $name
- * @property Carbon $started_at
- * @property Carbon|null $finished_at
+ * @property CarbonImmutable $started_at
+ * @property CarbonImmutable|null $finished_at
  * @property string|null $notes
  * @property string|null $share_token
  */

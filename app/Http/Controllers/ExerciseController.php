@@ -227,8 +227,8 @@ class ExerciseController extends Controller
 
     private function syncMuscles(Exercise $exercise, ExerciseRequest $request): void
     {
-        $primary = collect($request->input('primary_muscles', []))->mapWithKeys(fn (int|string $id) => [(int) $id => ['is_primary' => true]]);
-        $secondary = collect($request->input('secondary_muscles', []))->mapWithKeys(fn (int|string $id) => [(int) $id => ['is_primary' => false]]);
+        $primary = $request->collect('primary_muscles')->mapWithKeys(fn (int|string $id) => [(int) $id => ['is_primary' => true]]);
+        $secondary = $request->collect('secondary_muscles')->mapWithKeys(fn (int|string $id) => [(int) $id => ['is_primary' => false]]);
 
         $exercise->muscleGroups()->sync($primary->union($secondary)->all());
     }
@@ -253,7 +253,7 @@ class ExerciseController extends Controller
      */
     private function history(Request $request, Exercise $exercise): array
     {
-        return WorkoutSet::query()
+        return array_values(WorkoutSet::query()
             ->with('workoutSession:id,started_at')
             ->where('exercise_id', $exercise->id)
             ->where('is_warmup', false)
@@ -273,7 +273,6 @@ class ExerciseController extends Controller
                 'best_distance_m' => $sets->max('distance_m'),
             ])
             ->sortBy('date')
-            ->values()
-            ->all();
+            ->all());
     }
 }

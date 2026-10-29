@@ -85,6 +85,8 @@ class Exercise extends Model
 
     /**
      * Global catalog exercises plus the ones the given user created.
+     *
+     * @param  Builder<self>  $query
      */
     #[Scope]
     protected function visibleTo(Builder $query, User $user): void

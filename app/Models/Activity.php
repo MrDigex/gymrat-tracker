@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ActivitySource;
 use App\Enums\ActivityType;
+use Carbon\CarbonImmutable;
 use Database\Factories\ActivityFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -12,14 +13,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property int $user_id
  * @property ActivityType $type
  * @property string $name
- * @property Carbon $started_at
+ * @property CarbonImmutable $started_at
  * @property int $distance_m
  * @property int $duration_seconds
  * @property int|null $moving_seconds

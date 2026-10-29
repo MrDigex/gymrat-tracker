@@ -30,7 +30,7 @@ class WorkoutSessionController extends Controller
 
         return Inertia::render('workouts/index', [
             'sessions' => $sessions,
-            'routines' => RoutineResource::collection($request->user()->routines()->orderBy('name')->get())->resolve($request),
+            'routines' => RoutineResource::collection($request->user()->routines()->withCount('routineExercises')->orderBy('name')->get())->resolve($request),
         ]);
     }
 
@@ -44,7 +44,7 @@ class WorkoutSessionController extends Controller
             'name' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $routine = isset($validated['routine_id']) ? Routine::query()->findOrFail($validated['routine_id']) : null;
+        $routine = isset($validated['routine_id']) ? Routine::query()->whereKey($validated['routine_id'])->firstOrFail() : null;
 
         if ($routine) {
             $this->authorize('view', $routine);
@@ -65,7 +65,7 @@ class WorkoutSessionController extends Controller
 
         $workout->load(['sets', 'routine.routineExercises.exercise.muscleGroups']);
 
-        $routineExercises = $workout->routine?->routineExercises ?? collect();
+        $routineExercises = $workout->routine->routineExercises ?? collect();
         $loggedExerciseIds = $workout->sets->pluck('exercise_id')->unique();
         $extraExercises = Exercise::query()
             ->with('muscleGroups')

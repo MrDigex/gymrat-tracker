@@ -11,10 +11,10 @@ use App\Models\MuscleGroup;
 use App\Models\User;
 use App\Models\WorkoutSession;
 use App\Models\WorkoutSet;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\CarbonImmutable;
 use Illuminate\Support\Collection;
 
 /**
@@ -38,15 +38,15 @@ class StatsService
     public function kpis(User $user): array
     {
         $startOfWeek = now()->startOfWeek();
-        $startOfLastWeek = $startOfWeek->copy()->subWeek();
+        $startOfLastWeek = $startOfWeek->subWeek();
         $sets = $this->workingSets($user, $startOfLastWeek, now());
         $activities = $user->activities()->where('started_at', '>=', now()->subMonthNoOverflow()->startOfMonth())->get();
 
-        $volume = fn (Carbon $from, Carbon $to) => round($sets
+        $volume = fn (CarbonInterface $from, CarbonInterface $to) => round($sets
             ->filter(fn (WorkoutSet $set) => $set->workoutSession->started_at->between($from, $to))
             ->sum(fn (WorkoutSet $set) => $this->volume($set)), 1);
 
-        $km = fn (Carbon $from, Carbon $to) => round($activities
+        $km = fn (CarbonInterface $from, CarbonInterface $to) => round($activities
             ->filter(fn (Activity $activity) => $activity->started_at->between($from, $to))
             ->sum('distance_m') / 1000, 1);
 
@@ -68,7 +68,7 @@ class StatsService
     {
         $days = $user->workoutSessions()->where('started_at', '>=', now()->subYear())->pluck('started_at')
             ->concat($user->activities()->where('started_at', '>=', now()->subYear())->pluck('started_at'))
-            ->map(fn (Carbon $date) => $date->toDateString())
+            ->map(fn (CarbonInterface $date) => $date->toDateString())
             ->unique()
             ->flip();
 
@@ -93,12 +93,12 @@ class StatsService
      *
      * @return list<array<string, mixed>>
      */
-    public function weeklyVolumeByZone(User $user, Carbon $from, Carbon $to, ?BodyZone $zone = null): array
+    public function weeklyVolumeByZone(User $user, CarbonInterface $from, CarbonInterface $to, ?BodyZone $zone = null): array
     {
         $weeks = $this->emptyWeeks($from, $to, collect(BodyZone::cases())->mapWithKeys(fn (BodyZone $case) => [$case->value => 0])->all());
 
         foreach ($this->workingSets($user, $from, $to, $zone) as $set) {
-            $week = $set->workoutSession->started_at->copy()->startOfWeek()->toDateString();
+            $week = $set->workoutSession->started_at->startOfWeek()->toDateString();
             $setZone = $set->exercise->bodyZone();
 
             if ($setZone && isset($weeks[$week])) {
@@ -114,9 +114,9 @@ class StatsService
      *
      * @return list<array{muscle: string, zone: string, sets: int, volume_kg: float}>
      */
-    public function muscleDistribution(User $user, Carbon $from, Carbon $to, ?BodyZone $zone = null): array
+    public function muscleDistribution(User $user, CarbonInterface $from, CarbonInterface $to, ?BodyZone $zone = null): array
     {
-        return $this->workingSets($user, $from, $to, $zone)
+        return array_values($this->workingSets($user, $from, $to, $zone)
             ->flatMap(fn (WorkoutSet $set) => $set->exercise->primaryMuscleGroups->map(fn (MuscleGroup $muscle) => [$muscle, $set]))
             ->groupBy(fn (array $pair) => $pair[0]->id)
             ->map(fn (Collection $pairs) => [
@@ -126,8 +126,7 @@ class StatsService
                 'volume_kg' => round($pairs->sum(fn (array $pair) => $this->volume($pair[1])), 1),
             ])
             ->sortByDesc('sets')
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -135,9 +134,9 @@ class StatsService
      *
      * @return list<array<string, mixed>>
      */
-    public function exerciseProgress(User $user, Exercise $exercise, Carbon $from, Carbon $to): array
+    public function exerciseProgress(User $user, Exercise $exercise, CarbonInterface $from, CarbonInterface $to): array
     {
-        return $this->workingSets($user, $from, $to)
+        return array_values($this->workingSets($user, $from, $to)
             ->where('exercise_id', $exercise->id)
             ->groupBy('workout_session_id')
             ->map(fn (Collection $sets) => [
@@ -150,8 +149,7 @@ class StatsService
                 'best_duration_seconds' => $sets->max('duration_seconds'),
             ])
             ->sortBy('date')
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -161,7 +159,7 @@ class StatsService
      */
     public function loggedExercises(User $user): array
     {
-        return $this->workingSets($user, now()->subYears(5), now())
+        return array_values($this->workingSets($user, now()->subYears(5), now())
             ->groupBy('exercise_id')
             ->map(fn (Collection $sets) => [
                 'id' => $sets->first()->exercise_id,
@@ -169,8 +167,7 @@ class StatsService
                 'sessions' => $sets->pluck('workout_session_id')->unique()->count(),
             ])
             ->sortByDesc('sessions')
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -180,7 +177,7 @@ class StatsService
      */
     public function personalRecords(User $user, int $limit = 10): array
     {
-        return $this->workingSets($user, now()->subYears(5), now())
+        return array_values($this->workingSets($user, now()->subYears(5), now())
             ->filter(fn (WorkoutSet $set) => $set->weight_kg > 0 && $set->reps > 0)
             ->groupBy('exercise_id')
             ->map(function (Collection $sets) {
@@ -199,8 +196,7 @@ class StatsService
             })
             ->sortByDesc('date')
             ->take($limit)
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
@@ -210,7 +206,7 @@ class StatsService
      */
     public function hyroxBests(User $user): array
     {
-        return $this->workingSets($user, now()->subYears(5), now())
+        return array_values($this->workingSets($user, now()->subYears(5), now())
             ->filter(fn (WorkoutSet $set) => $set->exercise->category === ExerciseCategory::Hyrox && $set->duration_seconds)
             ->groupBy('exercise_id')
             ->map(function (Collection $sets) {
@@ -224,22 +220,21 @@ class StatsService
                     'date' => $best->workoutSession->started_at->toDateString(),
                 ];
             })
-            ->values()
-            ->all();
+            ->all());
     }
 
     /**
      * Weekly running distance and average pace.
      *
-     * @return list<array{week: string, km: float, runs: int, pace_seconds_per_km: int|null}>
+     * @return list<array{week: string, label: string, km: float, runs: int, pace_seconds_per_km: int|null}>
      */
-    public function weeklyRunning(User $user, Carbon $from, Carbon $to): array
+    public function weeklyRunning(User $user, CarbonInterface $from, CarbonInterface $to): array
     {
         $weeks = $this->emptyWeeks($from, $to, ['km' => 0.0, 'runs' => 0, 'seconds' => 0, 'meters' => 0]);
 
         $this->runs($user)->whereBetween('started_at', [$from, $to])->get()
             ->each(function (Activity $activity) use (&$weeks) {
-                $week = $activity->started_at->copy()->startOfWeek()->toDateString();
+                $week = $activity->started_at->startOfWeek()->toDateString();
 
                 if (! isset($weeks[$week])) {
                     return;
@@ -251,13 +246,13 @@ class StatsService
                 $weeks[$week]['meters'] += $activity->distance_m;
             });
 
-        return collect($weeks)->map(fn (array $week) => [
+        return array_values(array_map(fn (array $week) => [
             'week' => $week['week'],
             'label' => $week['label'],
             'km' => $week['km'],
             'runs' => $week['runs'],
             'pace_seconds_per_km' => $week['meters'] > 0 ? (int) round($week['seconds'] / ($week['meters'] / 1000)) : null,
-        ])->values()->all();
+        ], $weeks));
     }
 
     /**
@@ -269,7 +264,7 @@ class StatsService
     {
         $runs = $this->runs($user)->get();
 
-        return collect(self::RACE_DISTANCES)->map(function (int $distance, string $label) use ($runs) {
+        return array_values(collect(self::RACE_DISTANCES)->map(function (int $distance, string $label) use ($runs) {
             /** @var Activity|null $best */
             $best = $runs
                 ->filter(fn (Activity $activity) => $activity->distance_m >= $distance * 0.98 && $activity->distance_m <= $distance * 1.05)
@@ -287,7 +282,7 @@ class StatsService
                 'pace_label' => Activity::formatPace($best?->pace_seconds_per_km),
                 'date' => $best?->started_at->toDateString(),
             ];
-        })->values()->all();
+        })->all());
     }
 
     /**
@@ -295,25 +290,25 @@ class StatsService
      */
     public function recentWorkouts(User $user, int $limit = 5): array
     {
-        return $user->workoutSessions()
+        return array_values($user->workoutSessions()
             ->with(['routine:id,name', 'sets'])
             ->latest('started_at')
             ->limit($limit)
             ->get()
             ->map(fn (WorkoutSession $session) => [
                 'id' => $session->id,
-                'name' => $session->name ?? $session->routine?->name ?? 'Entrenamiento libre',
+                'name' => $session->name ?? $session->routine->name ?? 'Entrenamiento libre',
                 'started_at' => $session->started_at->toIso8601String(),
                 'sets' => $session->sets->count(),
                 'volume_kg' => round($session->sets->where('is_warmup', false)->sum(fn (WorkoutSet $set) => $this->volume($set)), 1),
             ])
-            ->all();
+            ->all());
     }
 
     /**
      * @return Collection<int, WorkoutSet>
      */
-    private function workingSets(User $user, Carbon $from, Carbon $to, ?BodyZone $zone = null): Collection
+    private function workingSets(User $user, CarbonInterface $from, CarbonInterface $to, ?BodyZone $zone = null): Collection
     {
         return WorkoutSet::query()
             ->where('is_warmup', false)
@@ -342,14 +337,14 @@ class StatsService
      * @param  array<string, mixed>  $defaults
      * @return array<string, array<string, mixed>>
      */
-    private function emptyWeeks(Carbon $from, Carbon $to, array $defaults): array
+    private function emptyWeeks(CarbonInterface $from, CarbonInterface $to, array $defaults): array
     {
         $weeks = [];
 
-        for ($week = $from->copy()->startOfWeek(); $week->lte($to); $week->addWeek()) {
+        for ($week = CarbonImmutable::instance($from)->startOfWeek(); $week->lte($to); $week = $week->addWeek()) {
             $weeks[$week->toDateString()] = [
                 'week' => $week->toDateString(),
-                'label' => $week->locale('es')->isoFormat('D MMM'),
+                'label' => $week->settings(['locale' => 'es'])->isoFormat('D MMM'),
                 ...$defaults,
             ];
         }

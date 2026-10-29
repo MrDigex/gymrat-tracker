@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Database\Factories\StravaAccountFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $athlete_id
  * @property string $access_token
  * @property string $refresh_token
- * @property Carbon $expires_at
+ * @property CarbonImmutable $expires_at
  * @property string|null $scopes
  */
 #[Fillable(['athlete_id', 'access_token', 'refresh_token', 'expires_at', 'scopes'])]

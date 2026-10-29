@@ -21,11 +21,11 @@ class ExerciseFactory extends Factory
      */
     public function definition(): array
     {
-        $name = fake()->unique()->words(3, true);
+        $name = rtrim(fake()->unique()->sentence(3, false), '.');
 
         return [
             'user_id' => null,
-            'name' => ucfirst($name),
+            'name' => $name,
             'slug' => Exercise::uniqueSlug($name),
             'instructions' => [fake()->sentence(), fake()->sentence()],
             'category' => ExerciseCategory::Strength,
