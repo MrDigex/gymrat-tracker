@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -12,14 +11,19 @@ class DatabaseSeeder extends Seeder
 
     /**
      * Seed the application's database.
+     *
+     * The free-exercise-db catalog is imported separately with `php artisan exercises:import`.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            MuscleGroupSeeder::class,
+            HyroxExerciseSeeder::class,
+            MotivationalQuoteSeeder::class,
         ]);
+
+        if (app()->isLocal()) {
+            $this->call(DemoDataSeeder::class);
+        }
     }
 }
