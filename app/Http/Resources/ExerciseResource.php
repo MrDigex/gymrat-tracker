@@ -43,11 +43,11 @@ class ExerciseResource extends JsonResource
             'body_zone_label' => $bodyZone?->label(),
             'primary_muscles' => $this->whenLoaded('muscleGroups', fn () => $this->muscleGroups
                 ->filter(fn (MuscleGroup $muscle) => $muscle->pivot->is_primary)
-                ->map(fn (MuscleGroup $muscle) => ['id' => $muscle->id, 'name' => $muscle->name])
+                ->map(fn (MuscleGroup $muscle) => ['id' => $muscle->id, 'name' => $muscle->name, 'body_zone' => $muscle->body_zone->value])
                 ->values()),
             'secondary_muscles' => $this->whenLoaded('muscleGroups', fn () => $this->muscleGroups
                 ->reject(fn (MuscleGroup $muscle) => $muscle->pivot->is_primary)
-                ->map(fn (MuscleGroup $muscle) => ['id' => $muscle->id, 'name' => $muscle->name])
+                ->map(fn (MuscleGroup $muscle) => ['id' => $muscle->id, 'name' => $muscle->name, 'body_zone' => $muscle->body_zone->value])
                 ->values()),
             'instructions' => $this->when($request->routeIs('exercises.show', 'exercises.edit'), fn () => $this->instructions ?? []),
         ];

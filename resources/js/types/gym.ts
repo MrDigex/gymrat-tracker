@@ -18,6 +18,7 @@ export type MuscleGroup = {
 export type MuscleRef = {
     id: number;
     name: string;
+    body_zone?: BodyZone;
 };
 
 export type Exercise = {

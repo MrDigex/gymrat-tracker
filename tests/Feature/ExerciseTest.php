@@ -4,6 +4,8 @@ use App\Enums\ExerciseSource;
 use App\Models\Exercise;
 use App\Models\MuscleGroup;
 use App\Models\User;
+use App\Models\WorkoutSession;
+use App\Models\WorkoutSet;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -150,4 +152,17 @@ test('the suggestion endpoint returns the next target', function () {
         ->assertOk()
         ->assertJsonPath('reason', 'first_time')
         ->assertJsonPath('has_history', false);
+});
+
+test('the exercise history reports the best set of each session', function () {
+    $exercise = Exercise::factory()->create();
+    $session = WorkoutSession::factory()->for($this->user)->create();
+    WorkoutSet::factory()->for($session)->for($exercise)->create(['weight_kg' => 70, 'reps' => 5]);
+    WorkoutSet::factory()->for($session)->for($exercise)->create(['weight_kg' => 67.5, 'reps' => 10]);
+
+    $this->actingAs($this->user)
+        ->get(route('exercises.show', $exercise))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('history.0.best_set', ['weight_kg' => 67.5, 'reps' => 10])
+            ->where('history.0.max_weight_kg', 70));
 });

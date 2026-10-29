@@ -1,7 +1,6 @@
 import { Head } from '@inertiajs/react';
 import type { ExerciseFormOptions } from '@/components/exercise-form';
-import { ExerciseForm } from '@/components/exercise-form';
-import Heading from '@/components/heading';
+import { ExerciseForm, ExerciseFormHeader } from '@/components/exercise-form';
 import exercises from '@/routes/exercises';
 import type { Exercise } from '@/types';
 
@@ -19,8 +18,11 @@ export default function ExerciseEdit({ exercise, values, ...options }: Props) {
         <>
             <Head title={`Editar ${exercise.name}`} />
 
-            <div className="mx-auto w-full max-w-4xl p-4">
-                <Heading title="Editar ejercicio" description={exercise.name} />
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pt-2 lg:pt-6">
+                <ExerciseFormHeader
+                    title="Editar ejercicio"
+                    closeHref={exercises.show.url(exercise.id)}
+                />
                 <ExerciseForm
                     options={options}
                     exercise={exercise}

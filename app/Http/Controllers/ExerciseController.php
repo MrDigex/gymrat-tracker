@@ -268,6 +268,9 @@ class ExerciseController extends Controller
                 'total_reps' => $sets->sum('reps'),
                 'volume_kg' => round($sets->sum(fn (WorkoutSet $set) => ($set->weight_kg ?? 0) * ($set->reps ?? 0)), 1),
                 'estimated_1rm' => $sets->map(fn (WorkoutSet $set) => $set->estimatedOneRepMax())->max(),
+                'best_set' => ($bestSet = $sets->sortByDesc(fn (WorkoutSet $set) => [$set->estimatedOneRepMax() ?? 0, $set->reps ?? 0])->first())
+                    ? ['weight_kg' => $bestSet->weight_kg, 'reps' => $bestSet->reps]
+                    : null,
                 'best_duration_seconds' => $sets->max('duration_seconds'),
                 'best_distance_m' => $sets->max('distance_m'),
             ])
