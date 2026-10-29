@@ -1,7 +1,14 @@
 import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import {
+    BarChart3,
+    ClipboardList,
+    Dumbbell,
+    Footprints,
+    LayoutGrid,
+    PlugZap,
+    Timer,
+} from 'lucide-react';
 import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -14,26 +21,52 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import activities from '@/routes/activities';
+import exercises from '@/routes/exercises';
+import integrations from '@/routes/integrations';
+import routines from '@/routes/routines';
+import stats from '@/routes/stats';
+import workouts from '@/routes/workouts';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
+        title: 'Inicio',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Rutinas',
+        href: routines.index(),
+        icon: ClipboardList,
+    },
+    {
+        title: 'Entrenamientos',
+        href: workouts.index(),
+        icon: Timer,
+    },
+    {
+        title: 'Ejercicios',
+        href: exercises.index(),
+        icon: Dumbbell,
+    },
+    {
+        title: 'Carreras',
+        href: activities.index(),
+        icon: Footprints,
+    },
+    {
+        title: 'Estadísticas',
+        href: stats.index(),
+        icon: BarChart3,
     },
 ];
 
 const footerNavItems: NavItem[] = [
     {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
+        title: 'Integraciones',
+        href: integrations.index(),
+        icon: PlugZap,
     },
 ];
 
@@ -57,7 +90,7 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                <NavMain items={footerNavItems} label={null} />
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

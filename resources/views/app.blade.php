@@ -34,6 +34,22 @@
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+        @isset($openGraph)
+            <meta name="description" content="{{ $openGraph['description'] }}">
+            <meta property="og:type" content="website">
+            <meta property="og:site_name" content="{{ config('app.name') }}">
+            <meta property="og:title" content="{{ $openGraph['title'] }}">
+            <meta property="og:description" content="{{ $openGraph['description'] }}">
+            <meta property="og:image" content="{{ $openGraph['image'] }}">
+            <meta property="og:image:width" content="1200">
+            <meta property="og:image:height" content="630">
+            <meta property="og:url" content="{{ $openGraph['url'] }}">
+            <meta name="twitter:card" content="summary_large_image">
+            <meta name="twitter:title" content="{{ $openGraph['title'] }}">
+            <meta name="twitter:description" content="{{ $openGraph['description'] }}">
+            <meta name="twitter:image" content="{{ $openGraph['image'] }}">
+        @endisset
+
         @fonts
 
         @viteReactRefresh
