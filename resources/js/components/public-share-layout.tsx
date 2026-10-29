@@ -1,7 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Check, Share2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { Button } from '@/components/ui/button';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { cn } from '@/lib/utils';
@@ -33,12 +32,12 @@ export function PublicShareLayout({
         <div className="min-h-screen bg-background text-foreground">
             <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
                 <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4">
-                    <Link
-                        href={home()}
-                        className="flex items-center gap-2 font-semibold"
-                    >
-                        <AppLogoIcon className="size-8" />
-                        <span className="truncate">{appName}</span>
+                    <Link href={home()} className="shrink-0">
+                        <img
+                            src="/images/logo/gymrat-lockup.png"
+                            alt={appName}
+                            className="h-10 w-auto"
+                        />
                     </Link>
                     <Button asChild size="sm">
                         <Link href={register()}>Crea tu cuenta gratis</Link>
