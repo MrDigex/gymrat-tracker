@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { Check, Share2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
@@ -6,8 +6,6 @@ import { Button } from '@/components/ui/button';
 import { useClipboard } from '@/hooks/use-clipboard';
 import { cn } from '@/lib/utils';
 import { home, register } from '@/routes';
-
-const appName = import.meta.env.VITE_APP_NAME || 'GymRat Tracker';
 
 /**
  * Standalone layout for public share pages (visitors are not logged in).
@@ -29,6 +27,8 @@ export function PublicShareLayout({
     shareText: string;
     children: ReactNode;
 }) {
+    const { name: appName } = usePage().props;
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
