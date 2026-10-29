@@ -314,7 +314,7 @@ class StatsService
             ->where('is_warmup', false)
             ->whereHas('workoutSession', fn (Builder $query) => $query->whereBelongsTo($user)->whereBetween('started_at', [$from, $to]))
             ->when($zone, fn (Builder $query, BodyZone $zone) => $query->whereHas(
-                'exercise.muscleGroups', fn (Builder $query) => $query->where('body_zone', $zone)->where('is_primary', true)
+                'exercise', fn (Builder $query) => $query->inBodyZone($zone)
             ))
             ->with(['workoutSession:id,started_at', 'exercise.primaryMuscleGroups'])
             ->get();

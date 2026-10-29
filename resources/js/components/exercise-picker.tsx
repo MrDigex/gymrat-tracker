@@ -42,7 +42,6 @@ const ZONE_FILTERS = [
     { value: 'superior', label: 'Tren superior' },
     { value: 'inferior', label: 'Tren inferior' },
     { value: 'core', label: 'Core' },
-    { value: 'cuerpo_completo', label: 'Cuerpo completo' },
 ];
 
 /**

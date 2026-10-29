@@ -37,7 +37,7 @@ class StatsController extends Controller
                 'zone' => $zone?->value,
                 'exercise' => $exercise?->id,
             ],
-            'zones' => collect(BodyZone::cases())->map(fn (BodyZone $case) => ['value' => $case->value, 'label' => $case->label()]),
+            'zones' => collect(BodyZone::filterable())->map(fn (BodyZone $case) => ['value' => $case->value, 'label' => $case->label()]),
             'loggedExercises' => $loggedExercises,
             'weeklyVolume' => $stats->weeklyVolumeByZone($user, $from, $to, $zone),
             'muscleDistribution' => $stats->muscleDistribution($user, $from, $to, $zone),

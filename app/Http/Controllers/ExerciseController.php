@@ -190,9 +190,7 @@ class ExerciseController extends Controller
             ->when($filters['muscle'] ?? null, fn (Builder $query, int $muscle) => $query->whereHas(
                 'muscleGroups', fn (Builder $query) => $query->whereKey($muscle)->where('is_primary', true)
             ))
-            ->when($zone, fn (Builder $query, BodyZone $zone) => $query->whereHas(
-                'muscleGroups', fn (Builder $query) => $query->where('body_zone', $zone)->where('is_primary', true)
-            ));
+            ->when($zone, fn (Builder $query, BodyZone $zone) => $query->inBodyZone($zone));
     }
 
     /**
@@ -208,7 +206,7 @@ class ExerciseController extends Controller
             'muscleGroups' => MuscleGroupResource::collection(MuscleGroup::query()->orderBy('name')->get())->resolve(),
             'categories' => collect(ExerciseCategory::cases())->map(fn (ExerciseCategory $case) => ['value' => $case->value, 'label' => $case->label()]),
             'trackingTypes' => collect(TrackingType::cases())->map(fn (TrackingType $case) => ['value' => $case->value, 'label' => $case->label()]),
-            'zones' => collect(BodyZone::cases())->map(fn (BodyZone $case) => ['value' => $case->value, 'label' => $case->label()]),
+            'zones' => collect(BodyZone::filterable())->map(fn (BodyZone $case) => ['value' => $case->value, 'label' => $case->label()]),
             'equipment' => $options(ExerciseTranslations::EQUIPMENT),
             'levels' => $options(ExerciseTranslations::LEVELS),
             'mechanics' => $options(ExerciseTranslations::MECHANICS),

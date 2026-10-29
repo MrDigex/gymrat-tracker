@@ -36,6 +36,28 @@ test('the library can be filtered by body zone', function () {
         ->assertInertia(fn (Assert $page) => $page->has('exercises.data', 1)->where('exercises.data.0.id', $legs->id));
 });
 
+test('the full body zone matches exercises whose main muscles span several zones', function () {
+    $upper = MuscleGroup::factory()->create(['body_zone' => 'superior']);
+    $lower = MuscleGroup::factory()->create(['body_zone' => 'inferior']);
+    $thruster = Exercise::factory()->create();
+    $thruster->muscleGroups()->attach([$upper->id => ['is_primary' => true], $lower->id => ['is_primary' => true]]);
+    $squat = Exercise::factory()->create();
+    $squat->muscleGroups()->attach([$lower->id => ['is_primary' => true], $upper->id => ['is_primary' => false]]);
+    $untaggedHyrox = Exercise::factory()->hyrox()->create();
+
+    $this->actingAs($this->user)
+        ->getJson(route('exercises.search', ['zone' => 'cuerpo_completo']))
+        ->assertOk()
+        ->assertJsonCount(2)
+        ->assertJsonFragment(['id' => $thruster->id])
+        ->assertJsonFragment(['id' => $untaggedHyrox->id]);
+
+    $this->actingAs($this->user)
+        ->getJson(route('exercises.search', ['zone' => 'inferior']))
+        ->assertJsonCount(1)
+        ->assertJsonPath('0.id', $squat->id);
+});
+
 test('search returns matching visible exercises as json', function () {
     Exercise::factory()->create(['name' => 'Sentadilla con barra']);
     Exercise::factory()->create(['name' => 'Remo con barra']);

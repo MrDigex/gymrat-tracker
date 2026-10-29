@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -92,6 +93,38 @@ class Exercise extends Model
     protected function visibleTo(Builder $query, User $user): void
     {
         $query->where(fn (Builder $query) => $query->whereNull('user_id')->orWhere('user_id', $user->id));
+    }
+
+    /**
+     * Exercises whose derived body zone is the given one, mirroring {@see BodyZone()}.
+     *
+     * @param  Builder<self>  $query
+     */
+    #[Scope]
+    protected function inBodyZone(Builder $query, BodyZone $zone): void
+    {
+        $primaryIn = fn (Builder $query, string $operator) => $query
+            ->where('is_primary', true)
+            ->where('body_zone', $operator, $zone->value);
+
+        if ($zone !== BodyZone::FullBody) {
+            $query->whereHas('muscleGroups', fn (Builder $query) => $primaryIn($query, '='))
+                ->whereDoesntHave('muscleGroups', fn (Builder $query) => $primaryIn($query, '!='));
+
+            return;
+        }
+
+        $query->where(fn (Builder $query) => $query
+            ->whereIn('exercises.id', fn (QueryBuilder $query) => $query
+                ->select('exercise_muscle_group.exercise_id')
+                ->from('exercise_muscle_group')
+                ->join('muscle_groups', 'muscle_groups.id', '=', 'exercise_muscle_group.muscle_group_id')
+                ->where('exercise_muscle_group.is_primary', true)
+                ->groupBy('exercise_muscle_group.exercise_id')
+                ->havingRaw('count(distinct muscle_groups.body_zone) > 1'))
+            ->orWhere(fn (Builder $query) => $query
+                ->where('category', ExerciseCategory::Hyrox)
+                ->whereDoesntHave('muscleGroups', fn (Builder $query) => $query->where('is_primary', true))));
     }
 
     public function isCustom(): bool
