@@ -48,6 +48,29 @@ test('search returns matching visible exercises as json', function () {
         ->assertJsonPath('0.name', 'Sentadilla con barra');
 });
 
+test('search can be narrowed to a muscle group', function () {
+    $chest = MuscleGroup::factory()->create();
+    $benchPress = Exercise::factory()->create();
+    $benchPress->muscleGroups()->attach($chest, ['is_primary' => true]);
+    $assisted = Exercise::factory()->create();
+    $assisted->muscleGroups()->attach($chest, ['is_primary' => false]);
+    Exercise::factory()->create();
+
+    $this->actingAs($this->user)
+        ->getJson(route('exercises.search', ['muscle' => $chest->id]))
+        ->assertOk()
+        ->assertJsonCount(1)
+        ->assertJsonPath('0.id', $benchPress->id);
+});
+
+test('authenticated pages share the muscle groups for the exercise picker', function () {
+    MuscleGroup::factory()->count(2)->create();
+
+    $this->actingAs($this->user)
+        ->get(route('routines.index'))
+        ->assertInertia(fn (Assert $page) => $page->has('muscleGroups', 2));
+});
+
 test('users can create a custom exercise with an image', function () {
     Storage::fake('public');
     $muscle = MuscleGroup::factory()->create();

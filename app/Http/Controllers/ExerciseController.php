@@ -63,6 +63,7 @@ class ExerciseController extends Controller
             'search' => ['nullable', 'string', 'max:100'],
             'category' => ['nullable', 'string'],
             'zone' => ['nullable', 'string'],
+            'muscle' => ['nullable', 'integer'],
         ]);
 
         $exercises = $this->filteredQuery($request, $filters)

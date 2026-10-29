@@ -2,7 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Resources\MuscleGroupResource;
+use App\Models\MuscleGroup;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -41,6 +44,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'muscleGroups' => $request->user()
+                ? Inertia::once(fn () => MuscleGroupResource::collection(MuscleGroup::query()->orderBy('name')->get())->resolve($request))
+                : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

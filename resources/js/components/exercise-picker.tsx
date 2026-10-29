@@ -1,3 +1,4 @@
+import { usePage } from '@inertiajs/react';
 import { Check, Search } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
@@ -12,6 +13,15 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectLabel,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
 import exercises from '@/routes/exercises';
@@ -95,6 +105,26 @@ export function ExercisePicker({
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('');
     const [zone, setZone] = useState('');
+    const [muscle, setMuscle] = useState('');
+    const { muscleGroups } = usePage().props;
+    const muscleZones = ZONE_FILTERS.filter(
+        (filter) =>
+            filter.value &&
+            (zone === '' || zone === filter.value) &&
+            muscleGroups.some((group) => group.body_zone === filter.value),
+    );
+
+    const changeZone = (value: string) => {
+        setZone(value);
+
+        if (
+            value &&
+            muscleGroups.find((group) => String(group.id) === muscle)
+                ?.body_zone !== value
+        ) {
+            setMuscle('');
+        }
+    };
     const [results, setResults] = useState<Exercise[]>([]);
     const [loading, setLoading] = useState(false);
     const [failed, setFailed] = useState(false);
@@ -116,6 +146,7 @@ export function ExercisePicker({
                             search: search.trim() || undefined,
                             category: category || undefined,
                             zone: zone || undefined,
+                            muscle: muscle || undefined,
                         },
                     }),
                     controller.signal,
@@ -143,7 +174,7 @@ export function ExercisePicker({
             window.clearTimeout(timeout);
             controller.abort();
         };
-    }, [open, search, category, zone]);
+    }, [open, search, category, zone, muscle]);
 
     const select = (exercise: Exercise) => {
         onSelect(exercise);
@@ -157,7 +188,7 @@ export function ExercisePicker({
                 <DialogHeader className="shrink-0">
                     <DialogTitle>{title}</DialogTitle>
                     <DialogDescription>
-                        Busca por nombre o filtra por categoría y zona.
+                        Busca por nombre o filtra por categoría, zona y músculo.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -188,12 +219,52 @@ export function ExercisePicker({
                         <FilterChip
                             key={filter.value}
                             active={zone === filter.value}
-                            onClick={() => setZone(filter.value)}
+                            onClick={() => changeZone(filter.value)}
                         >
                             {filter.label}
                         </FilterChip>
                     ))}
                 </div>
+
+                {muscleZones.length > 0 && (
+                    <Select
+                        value={muscle || 'all'}
+                        onValueChange={(value) =>
+                            setMuscle(value === 'all' ? '' : value)
+                        }
+                    >
+                        <SelectTrigger
+                            className="w-full shrink-0"
+                            aria-label="Grupo muscular"
+                        >
+                            <SelectValue placeholder="Todos los músculos" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                Todos los músculos
+                            </SelectItem>
+                            {muscleZones.map((filter) => (
+                                <SelectGroup key={filter.value}>
+                                    <SelectLabel>{filter.label}</SelectLabel>
+                                    {muscleGroups
+                                        .filter(
+                                            (group) =>
+                                                group.body_zone ===
+                                                filter.value,
+                                        )
+                                        .map((group) => (
+                                            <SelectItem
+                                                key={group.id}
+                                                value={String(group.id)}
+                                            >
+                                                {group.name}
+                                            </SelectItem>
+                                        ))}
+                                </SelectGroup>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
 
                 <div className="-mx-2 min-h-48 flex-1 overflow-y-auto overscroll-contain">
                     {loading && results.length === 0 ? (
