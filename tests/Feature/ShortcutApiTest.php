@@ -28,6 +28,14 @@ test('the shortcut can push a run in kilometres and minutes', function () {
         ->avg_hr->toBe(153);
 });
 
+test('the shortcut can send the duration as h:mm:ss', function () {
+    Sanctum::actingAs($this->user, [IntegrationController::SHORTCUT_ABILITY]);
+
+    $this->postJson(route('api.activities.store'), ['started_at' => '2026-10-24T09:30:00Z', 'distance_km' => 10, 'duration' => '0:54:30'])
+        ->assertCreated()
+        ->assertJsonPath('duration_seconds', 3270);
+});
+
 test('pushing the same workout twice does not duplicate it', function () {
     Sanctum::actingAs($this->user, [IntegrationController::SHORTCUT_ABILITY]);
     $payload = ['started_at' => '2026-10-28T07:30:00Z', 'distance_m' => 8000, 'duration_seconds' => 2400];

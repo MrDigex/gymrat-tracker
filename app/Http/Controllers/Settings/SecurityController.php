@@ -38,6 +38,8 @@ class SecurityController extends Controller
                     ->all()
                 : [],
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'passwordChangedAt' => $request->user()->password_changed_at?->toIso8601String(),
+            'twoFactorConfirmedAt' => $request->user()->two_factor_confirmed_at?->toIso8601String(),
         ];
 
         if (Features::canManageTwoFactorAuthentication()) {

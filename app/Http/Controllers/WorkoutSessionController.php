@@ -10,6 +10,7 @@ use App\Models\Exercise;
 use App\Models\Routine;
 use App\Models\RoutineExercise;
 use App\Models\WorkoutSession;
+use App\Services\PersonalRecords;
 use App\Services\Progression\ProgressionSuggester;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,13 @@ class WorkoutSessionController extends Controller
 {
     public function index(Request $request): Response
     {
+        $routines = $request->user()->routines()
+            ->withCount('routineExercises')
+            ->withMax('workoutSessions', 'started_at')
+            ->with('routineExercises')
+            ->orderBy('name')
+            ->get();
+
         $sessions = $request->user()->workoutSessions()
             ->with(['routine:id,name', 'sets'])
             ->withCount('sets')
@@ -30,7 +38,11 @@ class WorkoutSessionController extends Controller
 
         return Inertia::render('workouts/index', [
             'sessions' => $sessions,
-            'routines' => RoutineResource::collection($request->user()->routines()->withCount('routineExercises')->orderBy('name')->get())->resolve($request),
+            'routines' => RoutineResource::collection($routines)->resolve($request),
+            'suggestedRoutineId' => $routines
+                ->filter(fn (Routine $routine) => $routine->routine_exercises_count > 0)
+                ->sortBy(fn (Routine $routine) => $routine->workout_sessions_max_started_at ?? '')
+                ->first()?->id,
         ]);
     }
 
@@ -59,7 +71,7 @@ class WorkoutSessionController extends Controller
         return to_route('workouts.show', $session);
     }
 
-    public function show(Request $request, WorkoutSession $workout, ProgressionSuggester $suggester): Response
+    public function show(Request $request, WorkoutSession $workout, ProgressionSuggester $suggester, PersonalRecords $personalRecords): Response
     {
         $this->authorize('view', $workout);
 
@@ -85,6 +97,7 @@ class WorkoutSessionController extends Controller
         return Inertia::render('workouts/show', [
             'session' => WorkoutSessionResource::make($workout)->resolve($request),
             'entries' => $entries,
+            'records' => $personalRecords->forSession($workout),
         ]);
     }
 

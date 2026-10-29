@@ -26,8 +26,9 @@ class ActivityController extends Controller
             'started_at' => ['required', 'date'],
             'distance_m' => ['required_without:distance_km', 'nullable', 'numeric', 'min:1'],
             'distance_km' => ['required_without:distance_m', 'nullable', 'numeric', 'min:0.001'],
-            'duration_seconds' => ['required_without:duration_minutes', 'nullable', 'numeric', 'min:1'],
-            'duration_minutes' => ['required_without:duration_seconds', 'nullable', 'numeric', 'min:0.01'],
+            'duration_seconds' => ['required_without_all:duration_minutes,duration', 'nullable', 'numeric', 'min:1'],
+            'duration_minutes' => ['required_without_all:duration_seconds,duration', 'nullable', 'numeric', 'min:0.01'],
+            'duration' => ['required_without_all:duration_seconds,duration_minutes', 'nullable', 'string', 'regex:/^(\d+:)?\d{1,2}:\d{2}$/'],
             'type' => ['nullable', Rule::enum(ActivityType::class)],
             'name' => ['nullable', 'string', 'max:120'],
             'avg_hr' => ['nullable', 'numeric', 'min:30', 'max:250'],
@@ -45,7 +46,11 @@ class ActivityController extends Controller
             'name' => $validated['name'] ?? 'Carrera con Apple Watch',
             'started_at' => $startedAt,
             'distance_m' => isset($validated['distance_m']) ? $round('distance_m') : (int) round($validated['distance_km'] * 1000),
-            'duration_seconds' => isset($validated['duration_seconds']) ? $round('duration_seconds') : (int) round($validated['duration_minutes'] * 60),
+            'duration_seconds' => match (true) {
+                isset($validated['duration_seconds']) => (int) $round('duration_seconds'),
+                isset($validated['duration_minutes']) => (int) round($validated['duration_minutes'] * 60),
+                default => $this->durationToSeconds($validated['duration']),
+            },
             'avg_hr' => $round('avg_hr'),
             'max_hr' => $round('max_hr'),
             'calories' => $round('calories'),
@@ -57,5 +62,13 @@ class ActivityController extends Controller
         return ActivityResource::make($activity)
             ->response()
             ->setStatusCode($activity->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
+     * Convert "h:mm:ss" or "mm:ss" to seconds.
+     */
+    private function durationToSeconds(string $duration): int
+    {
+        return array_reduce(explode(':', $duration), fn (int $total, string $part) => $total * 60 + (int) $part, 0);
     }
 }

@@ -13,6 +13,7 @@ use App\Models\Routine;
 use App\Models\RoutineExercise;
 use App\Models\WorkoutSession;
 use App\Services\OgImageGenerator;
+use App\Services\PersonalRecords;
 use App\Services\Progression\ProgressionSuggester;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
@@ -50,7 +51,7 @@ class ShareController extends Controller
         ));
     }
 
-    public function workout(Request $request, string $token): Response
+    public function workout(Request $request, string $token, PersonalRecords $personalRecords): Response
     {
         $workout = WorkoutSession::query()->where('share_token', $token)->with(['sets', 'user:id,name', 'routine:id,name'])->firstOrFail();
         $exercises = Exercise::query()->whereIn('id', $workout->sets->pluck('exercise_id'))->get();
@@ -58,6 +59,7 @@ class ShareController extends Controller
         return $this->renderShare('share/workout', [
             'session' => WorkoutSessionResource::make($workout)->resolve($request),
             'exercises' => ExerciseResource::collection($exercises)->resolve($request),
+            'records' => $personalRecords->forSession($workout),
             'author' => $workout->user->name,
         ], ($workout->name ?? 'Entrenamiento').' · '.$this->formatDate($workout->started_at), 'Entrenamiento de '.$workout->user->name, route('share.workout.image', $token));
     }

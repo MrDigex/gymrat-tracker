@@ -17,6 +17,7 @@ class RoutineController extends Controller
     {
         $routines = $request->user()->routines()
             ->withCount('routineExercises')
+            ->withMax('workoutSessions', 'started_at')
             ->with('routineExercises.exercise')
             ->latest('updated_at')
             ->get();

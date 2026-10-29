@@ -137,3 +137,28 @@ test('routine exercises reach the page as a plain list', function () {
         ->get(route('routines.show', $empty))
         ->assertInertia(fn (Assert $page) => $page->where('routine.exercises', []));
 });
+
+test('routines expose an estimated duration and total sets', function () {
+    $routine = Routine::factory()->for($this->user)->create();
+    RoutineExercise::factory()->for($routine)->count(2)->create(['target_sets' => 4, 'rest_seconds' => 120]);
+
+    $this->actingAs($this->user)
+        ->get(route('routines.show', $routine))
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('routine.total_sets', 8)
+            ->where('routine.estimated_minutes', 20));
+});
+
+test('starting a workout suggests the routine done least recently', function () {
+    $recent = Routine::factory()->for($this->user)->create(['name' => 'A']);
+    $stale = Routine::factory()->for($this->user)->create(['name' => 'B']);
+    Routine::factory()->for($this->user)->create(['name' => 'Vacía']);
+    RoutineExercise::factory()->for($recent)->create();
+    RoutineExercise::factory()->for($stale)->create();
+    WorkoutSession::factory()->for($this->user)->create(['routine_id' => $recent->id, 'started_at' => now()->subDay()]);
+    WorkoutSession::factory()->for($this->user)->create(['routine_id' => $stale->id, 'started_at' => now()->subDays(6)]);
+
+    $this->actingAs($this->user)
+        ->get(route('workouts.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('suggestedRoutineId', $stale->id));
+});

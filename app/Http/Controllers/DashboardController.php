@@ -26,6 +26,11 @@ class DashboardController extends Controller
             'personalRecords' => Inertia::defer(fn () => $stats->personalRecords($user, 6)),
             'recentWorkouts' => $stats->recentWorkouts($user),
             'routinesCount' => $user->routines()->count(),
+            'onboarding' => [
+                'has_routine' => $user->routines()->exists(),
+                'has_workout' => $user->workoutSessions()->exists(),
+                'has_integration' => $user->stravaAccount()->exists() || $user->tokens()->exists(),
+            ],
         ]);
     }
 }

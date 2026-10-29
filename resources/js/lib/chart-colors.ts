@@ -2,15 +2,16 @@ import type { ChartConfig } from '@/components/ui/chart';
 import type { BodyZone, ChartZone } from '@/types';
 
 /**
- * Categorical palette (validated for color-vision deficiency) with a light and
- * a dark step per hue. Slots are always assigned in this order, never cycled.
+ * Theme chart colors (see --chart-1…5 in app.css; they adapt to light/dark).
+ * Yellow is never a data series: it only highlights records or the current value.
  */
-export const SERIES_COLORS = [
-    { light: '#2a78d6', dark: '#3987e5' }, // blue
-    { light: '#eb6834', dark: '#d95926' }, // orange
-    { light: '#1baf7a', dark: '#199e70' }, // aqua
-    { light: '#eda100', dark: '#c98500' }, // yellow
-] as const;
+export const CHART_COLORS = {
+    upper: 'var(--chart-1)',
+    lower: 'var(--chart-2)',
+    core: 'var(--chart-3)',
+    run: 'var(--chart-4)',
+    hyrox: 'var(--chart-5)',
+} as const;
 
 /**
  * Zones drawn in charts. Volume of exercises spanning several zones is split
@@ -28,20 +29,17 @@ export const BODY_ZONE_LABELS: Record<BodyZone, string> = {
 /**
  * One fixed color per body zone, shared by every chart in the app.
  */
-export const BODY_ZONE_COLORS: Record<
-    BodyZone,
-    { light: string; dark: string }
-> = {
-    superior: SERIES_COLORS[0],
-    inferior: SERIES_COLORS[1],
-    core: SERIES_COLORS[2],
-    cuerpo_completo: SERIES_COLORS[3],
+export const BODY_ZONE_COLORS: Record<BodyZone, string> = {
+    superior: CHART_COLORS.upper,
+    inferior: CHART_COLORS.lower,
+    core: CHART_COLORS.core,
+    cuerpo_completo: CHART_COLORS.hyrox,
 };
 
 export const bodyZoneChartConfig = Object.fromEntries(
     BODY_ZONES.map((zone) => [
         zone,
-        { label: BODY_ZONE_LABELS[zone], theme: BODY_ZONE_COLORS[zone] },
+        { label: BODY_ZONE_LABELS[zone], color: BODY_ZONE_COLORS[zone] },
     ]),
 ) satisfies ChartConfig;
 
@@ -49,14 +47,14 @@ export const bodyZoneChartConfig = Object.fromEntries(
  * Chart configs for single-measure charts, so the same measure keeps its color.
  */
 export const runningChartConfig = {
-    km: { label: 'Kilómetros', theme: SERIES_COLORS[0] },
-    pace: { label: 'Ritmo medio', theme: SERIES_COLORS[1] },
+    km: { label: 'Kilómetros', color: CHART_COLORS.run },
+    pace: { label: 'Ritmo medio', color: CHART_COLORS.run },
 } satisfies ChartConfig;
 
 export const progressChartConfig = {
-    max_weight_kg: { label: 'Peso máximo', theme: SERIES_COLORS[0] },
-    estimated_1rm: { label: '1RM estimado', theme: SERIES_COLORS[1] },
-    max_reps: { label: 'Reps máximas', theme: SERIES_COLORS[0] },
-    volume_kg: { label: 'Volumen', theme: SERIES_COLORS[0] },
-    best_duration_seconds: { label: 'Mejor tiempo', theme: SERIES_COLORS[0] },
+    max_weight_kg: { label: 'Peso máximo', color: CHART_COLORS.upper },
+    estimated_1rm: { label: '1RM estimado', color: CHART_COLORS.lower },
+    max_reps: { label: 'Reps máximas', color: CHART_COLORS.upper },
+    volume_kg: { label: 'Volumen', color: CHART_COLORS.upper },
+    best_duration_seconds: { label: 'Mejor tiempo', color: CHART_COLORS.run },
 } satisfies ChartConfig;
