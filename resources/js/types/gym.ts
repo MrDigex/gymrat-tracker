@@ -179,10 +179,15 @@ export type PersonalRecord = {
     date: string;
 };
 
+/**
+ * Zones shown in volume charts; full-body volume is split across these.
+ */
+export type ChartZone = Exclude<BodyZone, 'cuerpo_completo'>;
+
 export type WeeklyVolume = {
     week: string;
     label: string;
-} & Record<BodyZone, number>;
+} & Record<ChartZone, number>;
 
 export type MuscleDistribution = {
     muscle: string;

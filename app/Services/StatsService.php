@@ -89,20 +89,24 @@ class StatsService
     }
 
     /**
-     * Weekly training volume (kg) split by body zone.
+     * Weekly training volume (kg) split by body zone. Exercises whose main muscles span several zones split their volume evenly.
      *
      * @return list<array<string, mixed>>
      */
     public function weeklyVolumeByZone(User $user, CarbonInterface $from, CarbonInterface $to, ?BodyZone $zone = null): array
     {
-        $weeks = $this->emptyWeeks($from, $to, collect(BodyZone::cases())->mapWithKeys(fn (BodyZone $case) => [$case->value => 0])->all());
+        $weeks = $this->emptyWeeks($from, $to, collect(BodyZone::filterable())->mapWithKeys(fn (BodyZone $case) => [$case->value => 0])->all());
 
         foreach ($this->workingSets($user, $from, $to, $zone) as $set) {
             $week = $set->workoutSession->started_at->startOfWeek()->toDateString();
-            $setZone = $set->exercise->bodyZone();
+            $setZones = $set->exercise->primaryMuscleGroups->pluck('body_zone')->unique(fn (BodyZone $zone) => $zone->value);
 
-            if ($setZone && isset($weeks[$week])) {
-                $weeks[$week][$setZone->value] = round($weeks[$week][$setZone->value] + $this->volume($set), 1);
+            if ($setZones->isEmpty() || ! isset($weeks[$week])) {
+                continue;
+            }
+
+            foreach ($setZones as $setZone) {
+                $weeks[$week][$setZone->value] = round($weeks[$week][$setZone->value] + $this->volume($set) / $setZones->count(), 1);
             }
         }
 

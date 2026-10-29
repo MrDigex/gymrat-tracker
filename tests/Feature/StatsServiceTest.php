@@ -31,6 +31,18 @@ test('weekly volume is split by body zone and ignores warm-ups', function () {
         ->and(end($weeks))->toMatchArray(['superior' => 500, 'inferior' => 500, 'core' => 0]);
 });
 
+test('volume of exercises spanning several zones is split between them', function () {
+    $thruster = Exercise::factory()->create();
+    $thruster->muscleGroups()->attach([$this->chest->id => ['is_primary' => true], $this->quads->id => ['is_primary' => true]]);
+    $session = WorkoutSession::factory()->for($this->user)->create(['started_at' => now()->subDay()]);
+    WorkoutSet::factory()->for($session)->for($thruster)->create(['reps' => 10, 'weight_kg' => 40]);
+
+    $weeks = app(StatsService::class)->weeklyVolumeByZone($this->user, now()->subWeek(), now());
+
+    expect(end($weeks))->toMatchArray(['superior' => 200, 'inferior' => 200, 'core' => 0])
+        ->and(end($weeks))->not->toHaveKey('cuerpo_completo');
+});
+
 test('muscle distribution counts working sets per primary muscle', function () {
     $session = WorkoutSession::factory()->for($this->user)->create(['started_at' => now()->subDay()]);
     WorkoutSet::factory()->for($session)->for($this->bench)->count(3)->create(['reps' => 10, 'weight_kg' => 50]);

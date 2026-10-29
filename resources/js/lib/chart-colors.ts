@@ -1,5 +1,5 @@
 import type { ChartConfig } from '@/components/ui/chart';
-import type { BodyZone } from '@/types';
+import type { BodyZone, ChartZone } from '@/types';
 
 /**
  * Categorical palette (validated for color-vision deficiency) with a light and
@@ -12,12 +12,11 @@ export const SERIES_COLORS = [
     { light: '#eda100', dark: '#c98500' }, // yellow
 ] as const;
 
-export const BODY_ZONES: BodyZone[] = [
-    'superior',
-    'inferior',
-    'core',
-    'cuerpo_completo',
-];
+/**
+ * Zones drawn in charts. Volume of exercises spanning several zones is split
+ * across them by the backend, so there is no "cuerpo completo" series.
+ */
+export const BODY_ZONES: ChartZone[] = ['superior', 'inferior', 'core'];
 
 export const BODY_ZONE_LABELS: Record<BodyZone, string> = {
     superior: 'Tren superior',
