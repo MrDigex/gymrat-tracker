@@ -1,6 +1,7 @@
 import { Form, Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowDown,
+    ArrowLeft,
     ArrowUp,
     Clock,
     Dumbbell,
@@ -11,12 +12,11 @@ import {
     Pencil,
     Play,
     Plus,
-    Sparkles,
     Target,
     Trash2,
 } from 'lucide-react';
 import type { ComponentProps, FormEvent } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExerciseImage } from '@/components/exercise-image';
 import { ExercisePicker, fetchJson } from '@/components/exercise-picker';
 import InputError from '@/components/input-error';
@@ -57,6 +57,7 @@ import {
     formatTarget,
     parseDuration,
 } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import exercises from '@/routes/exercises';
 import routines from '@/routes/routines';
 import workouts from '@/routes/workouts';
@@ -154,11 +155,7 @@ function toPayload(data: TargetData, trackingType: TrackingType) {
 export default function RoutineShow({ routine, recentSessions }: Props) {
     const items = routine.exercises ?? [];
     const [starting, setStarting] = useState(false);
-    const [pending, setPending] = useState<{
-        exercise: Exercise;
-        suggestion: Suggestion | null;
-        loading: boolean;
-    } | null>(null);
+    const [highlightId, setHighlightId] = useState<number | null>(null);
 
     const start = () => {
         setStarting(true);
@@ -169,24 +166,9 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
         );
     };
 
-    const selectExercise = (exercise: Exercise) => {
-        setPending({ exercise, suggestion: null, loading: true });
-
-        fetchJson<Suggestion>(exercises.suggestion.url(exercise.id))
-            .then((suggestion) =>
-                setPending((current) =>
-                    current?.exercise.id === exercise.id
-                        ? { ...current, suggestion, loading: false }
-                        : current,
-                ),
-            )
-            .catch(() =>
-                setPending((current) =>
-                    current?.exercise.id === exercise.id
-                        ? { ...current, loading: false }
-                        : current,
-                ),
-            );
+    const highlight = (id: number | null) => {
+        setHighlightId(id);
+        window.setTimeout(() => setHighlightId(null), 2000);
     };
 
     const move = (index: number, offset: number) => {
@@ -204,7 +186,19 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
         <ExercisePicker
             title="Añadir ejercicio"
             excludeIds={items.map((item) => item.exercise.id)}
-            onSelect={selectExercise}
+            renderSelected={(exercise, { back, close }) => (
+                <AddExerciseStep
+                    key={exercise.id}
+                    routine={routine}
+                    exercise={exercise}
+                    existingIds={items.map((item) => item.id)}
+                    onBack={back}
+                    onDone={(id) => {
+                        close();
+                        highlight(id);
+                    }}
+                />
+            )}
             trigger={
                 <button
                     type="button"
@@ -335,6 +329,7 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
                                     item={item}
                                     index={index}
                                     isLast={index === items.length - 1}
+                                    highlighted={item.id === highlightId}
                                     onMove={(offset) => move(index, offset)}
                                 />
                             ))}
@@ -398,41 +393,6 @@ export default function RoutineShow({ routine, recentSessions }: Props) {
                     </CardContent>
                 </Card>
             </div>
-
-            <Dialog
-                open={pending !== null}
-                onOpenChange={(open) => !open && setPending(null)}
-            >
-                <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
-                    {pending && (
-                        <>
-                            <DialogHeader>
-                                <DialogTitle>
-                                    Añadir {pending.exercise.name}
-                                </DialogTitle>
-                                <DialogDescription>
-                                    Hemos preparado tus objetivos para que sigas
-                                    progresando. Ajústalos si lo necesitas.
-                                </DialogDescription>
-                            </DialogHeader>
-                            {pending.loading ? (
-                                <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
-                                    <Spinner />
-                                    Calculando tu sugerencia…
-                                </div>
-                            ) : (
-                                <AddExerciseForm
-                                    key={pending.exercise.id}
-                                    routine={routine}
-                                    exercise={pending.exercise}
-                                    suggestion={pending.suggestion}
-                                    onDone={() => setPending(null)}
-                                />
-                            )}
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
         </>
     );
 }
@@ -552,19 +512,26 @@ function RoutineExerciseItem({
     item,
     index,
     isLast,
+    highlighted = false,
     onMove,
 }: {
     routine: Routine;
     item: RoutineExercise;
     index: number;
     isLast: boolean;
+    highlighted?: boolean;
     onMove: (offset: number) => void;
 }) {
     const [editing, setEditing] = useState(false);
     const [removing, setRemoving] = useState(false);
 
     return (
-        <li className="flex gap-3 rounded-xl border bg-card p-3">
+        <li
+            className={cn(
+                'flex gap-3 rounded-xl border bg-card p-3 transition-shadow duration-300',
+                highlighted && 'ring-2 ring-primary',
+            )}
+        >
             <div className="relative shrink-0">
                 <ExerciseImage
                     exercise={item.exercise}
@@ -683,16 +650,69 @@ function RoutineExerciseItem({
     );
 }
 
+/**
+ * Second step of the add-exercise sheet: fetch the coach suggestion, then confirm targets.
+ */
+function AddExerciseStep(props: {
+    routine: Routine;
+    exercise: Exercise;
+    existingIds: number[];
+    onBack: () => void;
+    onDone: (routineExerciseId: number | null) => void;
+}) {
+    const [state, setState] = useState<{
+        loading: boolean;
+        suggestion: Suggestion | null;
+    }>({ loading: true, suggestion: null });
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        fetchJson<Suggestion>(
+            exercises.suggestion.url(props.exercise.id),
+            controller.signal,
+        )
+            .then((suggestion) => setState({ loading: false, suggestion }))
+            .catch((error: unknown) => {
+                if (
+                    error instanceof DOMException &&
+                    error.name === 'AbortError'
+                ) {
+                    return;
+                }
+
+                setState({ loading: false, suggestion: null });
+            });
+
+        return () => controller.abort();
+    }, [props.exercise.id]);
+
+    if (state.loading) {
+        return (
+            <div className="flex flex-col items-center gap-2 py-10 text-sm text-muted-foreground">
+                <Spinner />
+                Tu coach está calculando el siguiente paso…
+            </div>
+        );
+    }
+
+    return <AddExerciseForm {...props} suggestion={state.suggestion} />;
+}
+
 function AddExerciseForm({
     routine,
     exercise,
+    existingIds,
     suggestion,
+    onBack,
     onDone,
 }: {
     routine: Routine;
     exercise: Exercise;
+    existingIds: number[];
     suggestion: Suggestion | null;
-    onDone: () => void;
+    onBack: () => void;
+    onDone: (routineExerciseId: number | null) => void;
 }) {
     const form = useForm<TargetData>(fromSuggestion(suggestion));
 
@@ -704,41 +724,33 @@ function AddExerciseForm({
         }));
         form.post(routines.exercises.store.url(routine.id), {
             preserveScroll: true,
-            onSuccess: onDone,
+            onSuccess: (page) => {
+                const added = (page.props.routine as Routine).exercises?.find(
+                    (item) => !existingIds.includes(item.id),
+                );
+
+                onDone(added?.id ?? null);
+            },
         });
     };
 
     return (
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="flex flex-col gap-4 pt-1">
             <div className="flex items-center gap-3">
                 <ExerciseImage
                     exercise={exercise}
                     animate={false}
-                    className="h-14 w-20 shrink-0 rounded-lg [&_svg]:size-5"
+                    className="h-14 w-20 shrink-0 rounded-md [&_svg]:size-5"
                 />
-                <div className="min-w-0 text-sm">
-                    <p className="truncate font-medium">{exercise.name}</p>
-                    <p className="truncate text-muted-foreground">
-                        {exercise.primary_muscles
-                            ?.map((muscle) => muscle.name)
-                            .join(', ') || exercise.category_label}
-                    </p>
-                </div>
+                <p className="min-w-0 truncate text-sm text-muted-foreground">
+                    {exercise.primary_muscles
+                        ?.map((muscle) => muscle.name)
+                        .join(', ') || exercise.category_label}
+                </p>
             </div>
 
             {suggestion ? (
-                <div className="space-y-2">
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                        <Sparkles className="size-4" />
-                        {suggestion.has_history
-                            ? 'Sobrecarga progresiva: tu siguiente paso'
-                            : 'Punto de partida recomendado'}
-                    </p>
-                    <SuggestionCallout
-                        suggestion={suggestion}
-                        className="border-emerald-500/40 bg-emerald-500/5"
-                    />
-                </div>
+                <SuggestionCallout suggestion={suggestion} variant="coach" />
             ) : (
                 <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
                     No pudimos calcular una sugerencia. Indica tus objetivos
@@ -753,17 +765,20 @@ function AddExerciseForm({
                 onChange={(key, value) => form.setData(key, value)}
             />
 
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                        Cancelar
-                    </Button>
-                </DialogClose>
-                <Button type="submit" disabled={form.processing}>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="lg"
+                    onClick={onBack}
+                >
+                    <ArrowLeft /> Atrás
+                </Button>
+                <Button type="submit" size="lg" disabled={form.processing}>
                     {form.processing ? <Spinner /> : <Plus />} Añadir a la
                     rutina
                 </Button>
-            </DialogFooter>
+            </div>
         </form>
     );
 }
