@@ -14,6 +14,7 @@ declare module '@inertiajs/core' {
             auth: Auth;
             sidebarOpen: boolean;
             muscleGroups: MuscleGroup[];
+            activeWorkoutId: number | null;
             [key: string]: unknown;
         };
     }

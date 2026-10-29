@@ -28,6 +28,7 @@ export function NavMain({
                             asChild
                             isActive={isCurrentUrl(item.href)}
                             tooltip={{ children: item.title }}
+                            className="relative h-10 group-data-[collapsible=icon]:after:hidden data-[active=true]:font-bold data-[active=true]:after:absolute data-[active=true]:after:top-1/2 data-[active=true]:after:right-2 data-[active=true]:after:h-5 data-[active=true]:after:w-1 data-[active=true]:after:-translate-y-1/2 data-[active=true]:after:rounded-full data-[active=true]:after:bg-primary"
                         >
                             <Link href={item.href} prefetch>
                                 {item.icon && <item.icon />}

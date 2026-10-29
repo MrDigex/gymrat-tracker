@@ -44,6 +44,11 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'activeWorkoutId' => fn () => $request->user()?->workoutSessions()
+                ->whereNull('finished_at')
+                ->where('started_at', '>=', now()->subHours(12))
+                ->latest('started_at')
+                ->value('id'),
             'muscleGroups' => $request->user()
                 ? Inertia::once(fn () => MuscleGroupResource::collection(MuscleGroup::query()->orderBy('name')->get())->resolve($request))
                 : [],

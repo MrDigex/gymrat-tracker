@@ -20,6 +20,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useTrainHref } from '@/hooks/use-train-href';
 import { dashboard } from '@/routes';
 import activities from '@/routes/activities';
 import exercises from '@/routes/exercises';
@@ -71,6 +72,8 @@ export const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const trainHref = useTrainHref();
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -79,6 +82,19 @@ export function AppSidebar() {
                         <SidebarMenuButton size="lg" asChild>
                             <Link href={dashboard()} prefetch>
                                 <AppLogo />
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem className="mt-3">
+                        <SidebarMenuButton
+                            asChild
+                            size="lg"
+                            tooltip={{ children: 'Entrenar' }}
+                            className="justify-center bg-primary font-bold text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/80 active:text-primary-foreground"
+                        >
+                            <Link href={trainHref}>
+                                <Dumbbell className="-rotate-45" />
+                                <span>Entrenar</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
